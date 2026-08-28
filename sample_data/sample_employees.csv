@@ -1,0 +1,41 @@
+employee_id,name,department,job_title,years_experience,salary,performance_score,training_hours,projects_completed,age,education_level,is_remote,monthly_overtime_hours
+E001,Sarah Chen,Engineering,Senior Developer,8,125000,92,45,12,34,Masters,Yes,15
+E002,James Wilson,Marketing,Marketing Manager,6,88000,78,30,8,31,Bachelors,No,10
+E003,Maria Garcia,Engineering,Tech Lead,12,155000,95,60,18,38,Masters,Yes,22
+E004,Robert Johnson,Sales,Sales Rep,3,62000,71,20,15,27,Bachelors,No,8
+E005,Emily Davis,Engineering,Junior Developer,1,72000,68,55,4,24,Bachelors,Yes,5
+E006,Michael Brown,HR,HR Specialist,5,76000,82,25,6,30,Bachelors,No,3
+E007,Lisa Anderson,Engineering,Senior Developer,9,130000,89,40,14,36,Masters,Yes,18
+E008,David Martinez,Sales,Sales Manager,10,105000,85,35,20,40,Bachelors,No,12
+E009,Jennifer Taylor,Marketing,Content Specialist,4,68000,75,28,9,28,Bachelors,Yes,6
+E010,William Thomas,Engineering,Staff Engineer,15,185000,97,50,22,42,PhD,Yes,25
+E011,Amanda White,Finance,Financial Analyst,7,95000,88,32,10,33,Masters,No,14
+E012,Christopher Lee,Engineering,Senior Developer,10,135000,91,42,16,37,Masters,Yes,20
+E013,Jessica Harris,Sales,Sales Rep,2,58000,65,18,11,25,Bachelors,No,7
+E014,Daniel Clark,Marketing,Marketing Director,14,140000,93,48,17,41,Masters,No,16
+E015,Ashley Lewis,Engineering,Junior Developer,1,70000,62,52,3,23,Bachelors,Yes,4
+E016,Matthew Robinson,HR,HR Manager,11,110000,87,38,9,39,Masters,No,10
+E017,Stephanie Walker,Finance,Senior Analyst,9,112000,90,36,13,35,Masters,Yes,15
+E018,Andrew Hall,Engineering,Tech Lead,13,160000,96,58,20,40,PhD,Yes,24
+E019,Nicole Young,Sales,Sales Rep,4,65000,73,22,14,29,Bachelors,No,9
+E020,Kevin King,Marketing,SEO Specialist,3,64000,70,26,7,26,Bachelors,Yes,5
+E021,Rachel Wright,Engineering,Senior Developer,7,128000,88,44,13,33,Masters,Yes,17
+E022,Brian Scott,Finance,Controller,16,175000,94,42,15,45,Masters,No,20
+E023,Laura Green,HR,Recruiter,2,55000,67,20,5,25,Bachelors,No,3
+E024,Timothy Adams,Engineering,DevOps Engineer,6,118000,84,48,11,32,Bachelors,Yes,14
+E025,Megan Baker,Sales,Account Executive,8,98000,86,30,18,35,Bachelors,No,11
+E026,Jason Nelson,Engineering,Junior Developer,2,75000,72,50,5,26,Bachelors,Yes,6
+E027,Karen Carter,Marketing,Brand Manager,9,102000,83,34,12,36,Masters,No,13
+E028,Ryan Mitchell,Engineering,Senior Developer,11,140000,93,46,17,39,Masters,Yes,19
+E029,Amber Perez,Finance,Junior Analyst,1,58000,64,24,3,24,Bachelors,No,4
+E030,Justin Roberts,Sales,Sales Director,13,145000,91,40,22,43,Masters,No,18
+E031,Tiffany Turner,Engineering,Staff Engineer,14,180000,96,55,21,41,PhD,Yes,23
+E032,Brandon Phillips,HR,Training Specialist,4,68000,76,30,7,29,Bachelors,No,5
+E033,Samantha Campbell,Engineering,Senior Developer,8,132000,90,43,15,35,Masters,Yes,16
+E034,Patrick Parker,Marketing,Digital Marketer,5,74000,77,28,10,30,Bachelors,Yes,8
+E035,Christina Evans,Sales,Sales Rep,3,60000,69,19,12,27,Bachelors,No,7
+E036,Gregory Edwards,Engineering,Tech Lead,12,158000,94,56,19,38,Masters,Yes,21
+E037,Diana Collins,Finance,Financial Manager,10,130000,89,38,14,37,Masters,No,16
+E038,Sean Stewart,Engineering,Junior Developer,1,71000,66,53,4,24,Bachelors,Yes,5
+E039,Rebecca Sanchez,Marketing,Marketing Analyst,6,82000,81,32,9,31,Masters,No,10
+E040,Eric Morris,Sales,Sales Manager,9,108000,84,33,19,38,Bachelors,No,13

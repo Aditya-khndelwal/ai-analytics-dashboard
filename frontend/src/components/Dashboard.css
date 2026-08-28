@@ -1,0 +1,37 @@
+.dashboard-loading, 
+.dashboard-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.dashboard-error {
+  color: var(--error-text);
+  background-color: rgba(90, 35, 56, 0.1);
+  border: 1px solid var(--error-bg);
+  border-radius: 12px;
+}
+
+.overview-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: 24px;
+}
+
+.overview-narrative, 
+.overview-charts {
+  min-width: 0; /* Prevent grid blowout */
+}
+
+.tab-content {
+  margin-top: 24px;
+}
+
+@media (max-width: 768px) {
+  .overview-grid {
+    grid-template-columns: 1fr;
+  }
+}

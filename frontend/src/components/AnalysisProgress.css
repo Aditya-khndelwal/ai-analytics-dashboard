@@ -1,0 +1,134 @@
+.progress-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 24px;
+  min-height: calc(100vh - 128px);
+  overflow: visible;
+}
+
+.pipeline {
+  display: flex;
+  align-items: flex-start;
+  width: 100%;
+  max-width: 600px;
+  justify-content: space-between;
+  position: relative;
+  margin-bottom: 56px;
+}
+
+.step-wrapper {
+  display: flex;
+  align-items: center;
+  position: relative;
+  flex: 1;
+}
+
+.step-wrapper:last-child {
+  flex: 0;
+}
+
+.pipeline-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  z-index: 2;
+}
+
+.step-circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 99px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Inter', sans-serif;
+  font-size: 15px;
+  font-weight: 500;
+  background-color: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text-tertiary);
+  transition: all 0.2s ease;
+}
+
+.step-label {
+  margin-top: 14px;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  color: var(--text-tertiary);
+  text-align: center;
+  position: absolute;
+  top: 40px;
+  width: 90px;
+  transition: all 0.2s ease;
+}
+
+.pipeline-step.active .step-circle {
+  border-color: var(--accent);
+  color: var(--accent);
+  background-color: var(--accent-subtle);
+  animation: pulse 2s infinite;
+}
+
+.pipeline-step.active .step-label {
+  color: var(--text-primary);
+}
+
+.pipeline-step.complete .step-circle {
+  background-color: var(--success-bg);
+  border-color: var(--success-text);
+  color: var(--success-text);
+}
+
+.pipeline-step.complete .step-label {
+  color: var(--text-secondary);
+}
+
+.connector {
+  flex: 1;
+  height: 2px;
+  background-color: var(--border);
+  margin: 0 8px;
+  position: relative;
+  top: 0;
+  z-index: 1;
+  margin-top: 20px;
+  overflow: hidden;
+  border-radius: 1px;
+}
+
+.connector-fill {
+  border-radius: 1px;
+}
+
+.connector.filled {
+  background-color: var(--accent);
+}
+
+.status-message {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.error-text {
+  color: var(--error-text);
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(201,167,106,0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 12px rgba(201,167,106,0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(201,167,106,0);
+  }
+}

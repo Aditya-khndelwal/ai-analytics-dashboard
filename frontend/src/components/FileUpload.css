@@ -1,0 +1,136 @@
+.file-upload-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 32px;
+}
+
+.upload-zone {
+  width: 100%;
+  max-width: 600px;
+  min-height: 300px;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  background-color: var(--bg-card);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  padding: 32px;
+}
+
+.upload-zone.drag-over {
+  border-color: var(--accent);
+  background-color: var(--bg-elevated);
+}
+
+.upload-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.upload-icon {
+  width: 40px;
+  height: 40px;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+}
+
+.upload-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 20px;
+  color: var(--text-primary);
+  margin: 0 0 8px 0;
+  font-weight: 500;
+}
+
+.upload-subtitle {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin: 0 0 24px 0;
+}
+
+.browse-btn {
+  font-family: 'Inter', sans-serif;
+}
+
+.file-selected-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 400px;
+}
+
+.file-info-box {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 16px;
+  background-color: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 24px;
+}
+
+.file-icon {
+  width: 24px;
+  height: 24px;
+  color: var(--accent);
+  margin-right: 16px;
+}
+
+.file-details {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.file-name {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 4px;
+}
+
+.size-badge {
+  align-self: flex-start;
+  font-size: 11px;
+}
+
+.remove-btn {
+  padding: 8px;
+  color: var(--text-secondary);
+  margin-left: 8px;
+}
+
+.remove-btn:hover {
+  color: var(--error-text);
+}
+
+.analyze-btn {
+  width: 100%;
+}
+
+.upload-error {
+  margin-top: 16px;
+  padding: 12px 16px;
+  background-color: var(--error-bg);
+  color: var(--error-text);
+  border-radius: 8px;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  text-align: center;
+  max-width: 600px;
+  width: 100%;
+}
