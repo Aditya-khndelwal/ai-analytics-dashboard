@@ -4,6 +4,7 @@ import ParticleCanvas from './ParticleCanvas';
 import TextFlippingBoard from '../ui/TextFlippingBoard';
 import DecryptedText from '../ui/DecryptedText';
 import FileUpload from '../FileUpload';
+import { uploadSample, triggerAnalysis } from '../../api/client';
 import './LandingPage.css';
 
 /* ── Animated CountUp ── */
@@ -133,8 +134,9 @@ const pipelineSteps = [
 ];
 
 /* ══════ Landing Page ══════ */
-function LandingPage({ onUploadComplete }) {
+function LandingPage({ onUploadComplete, onSampleStart }) {
   const [showFlipboard, setShowFlipboard] = useState(false);
+  const [sampleLoading, setSampleLoading] = useState(null);
   const heroRef = useRef(null);
   const { scrollYProgress } = useScroll();
   const heroOpacity = useTransform(scrollYProgress, [0, 0.12], [1, 0]);
@@ -150,6 +152,18 @@ function LandingPage({ onUploadComplete }) {
     document.getElementById('upload-section')?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const handleSampleClick = async (name) => {
+    if (sampleLoading) return;
+    setSampleLoading(name);
+    try {
+      const data = await uploadSample(name);
+      await triggerAnalysis(data.session_id);
+      if (onSampleStart) onSampleStart(data.session_id, data.filename);
+    } catch (err) {
+      console.error('Sample upload failed:', err);
+      setSampleLoading(null);
+    }
+  };
   return (
     <div className="landing-page">
       {/* ═══ HERO ═══ */}
@@ -306,6 +320,50 @@ function LandingPage({ onUploadComplete }) {
             <div className="stat-number">&lt; <CountUp target={30} />s</div>
             <div className="stat-label">Average Processing Time</div>
           </div>
+        </div>
+      </section>
+
+      {/* ═══ SAMPLE DATA ═══ */}
+      <section className="sample-section">
+        <ScrollReveal>
+          <h2 className="section-heading">Try It Now</h2>
+          <p className="section-subheading">No file? No problem. Try with one of our sample datasets.</p>
+        </ScrollReveal>
+
+        <div className="sample-grid">
+          <motion.button
+            className={`sample-card ${sampleLoading === 'employees' ? 'loading' : ''}`}
+            onClick={() => handleSampleClick('employees')}
+            disabled={!!sampleLoading}
+            whileHover={!sampleLoading ? { y: -4, borderColor: 'rgba(201,167,106,0.3)' } : {}}
+            whileTap={!sampleLoading ? { scale: 0.98 } : {}}
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+          >
+            <span className="sample-icon">👥</span>
+            <h4 className="sample-title">Employee Dataset</h4>
+            <p className="sample-desc">50 employees — salaries, departments, experience, performance ratings</p>
+            {sampleLoading === 'employees' && <span className="sample-loading">Processing...</span>}
+          </motion.button>
+
+          <motion.button
+            className={`sample-card ${sampleLoading === 'sales' ? 'loading' : ''}`}
+            onClick={() => handleSampleClick('sales')}
+            disabled={!!sampleLoading}
+            whileHover={!sampleLoading ? { y: -4, borderColor: 'rgba(201,167,106,0.3)' } : {}}
+            whileTap={!sampleLoading ? { scale: 0.98 } : {}}
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+          >
+            <span className="sample-icon">💰</span>
+            <h4 className="sample-title">Sales Dataset</h4>
+            <p className="sample-desc">100 transactions — products, regions, revenue, quantities, dates</p>
+            {sampleLoading === 'sales' && <span className="sample-loading">Processing...</span>}
+          </motion.button>
         </div>
       </section>
 

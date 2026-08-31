@@ -32,6 +32,14 @@ async def init_db() -> None:
                 FOREIGN KEY(session_id) REFERENCES sessions(id)
             )
         ''')
+        await db.execute('''
+            CREATE TABLE IF NOT EXISTS share_tokens (
+                token TEXT PRIMARY KEY,
+                session_id TEXT,
+                created_at TEXT,
+                FOREIGN KEY(session_id) REFERENCES sessions(id)
+            )
+        ''')
         await db.commit()
 
 async def create_session(original_filename: str, filename: str, uploaded_at: str, row_count: int, col_count: int, column_info: List[Dict[str, Any]]) -> str:
@@ -89,3 +97,21 @@ async def get_results(session_id: str) -> Optional[Dict[str, Any]]:
                     'created_at': row['created_at']
                 }
             return None
+
+async def create_share_token(session_id: str) -> str:
+    """Creates a share token for a session and returns it."""
+    token = uuid.uuid4().hex[:8]
+    async with aiosqlite.connect(settings.DB_PATH) as db:
+        await db.execute(
+            'INSERT INTO share_tokens (token, session_id, created_at) VALUES (?, ?, ?)',
+            (token, session_id, __import__('datetime').datetime.utcnow().isoformat())
+        )
+        await db.commit()
+    return token
+
+async def get_session_by_token(token: str) -> Optional[str]:
+    """Returns the session_id for a given share token."""
+    async with aiosqlite.connect(settings.DB_PATH) as db:
+        async with db.execute('SELECT session_id FROM share_tokens WHERE token = ?', (token,)) as cursor:
+            row = await cursor.fetchone()
+            return row[0] if row else None
