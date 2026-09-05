@@ -21,6 +21,19 @@ export const uploadSample = async (datasetName) => {
   return response.json();
 };
 
+export const uploadFromUrl = async (url) => {
+  const response = await fetch(`${API_BASE}/api/upload/url`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || 'URL upload failed');
+  }
+  return response.json();
+};
+
 export const triggerAnalysis = async (sessionId) => {
   const response = await fetch(`${API_BASE}/api/analyze/${sessionId}`, {
     method: 'POST',

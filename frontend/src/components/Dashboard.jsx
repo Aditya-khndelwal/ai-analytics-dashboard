@@ -6,6 +6,7 @@ import ChartGrid from './ChartGrid';
 import DataPreview from './DataPreview';
 import ExportPanel from './ExportPanel';
 import ChatPanel from './ChatPanel';
+import CustomChart from './CustomChart';
 import './Dashboard.css';
 import './ChatPanel.css';
 
@@ -126,7 +127,7 @@ function Dashboard({ sessionId, filename, activeTab, onTabChange }) {
 
       {/* Tab Navigation */}
       <div className="tab-bar">
-        {['overview', 'charts', 'data', 'export'].map(tab => (
+        {['overview', 'charts', 'custom', 'data', 'export'].map(tab => (
           <button
             key={tab}
             className={`tab-item ${activeTab === tab ? 'active' : ''}`}
@@ -159,6 +160,7 @@ function Dashboard({ sessionId, filename, activeTab, onTabChange }) {
               </div>
             )}
             {activeTab === 'charts' && <ChartGrid charts={charts || []} />}
+            {activeTab === 'custom' && <CustomChart data={data_preview} session={session} />}
             {activeTab === 'data' && <DataPreview data={data_preview} session={session} />}
             {activeTab === 'export' && <ExportPanel sessionId={sessionId} filename={filename} />}
           </motion.div>

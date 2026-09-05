@@ -1,0 +1,147 @@
+/* ── Custom Chart Builder ── */
+
+.custom-chart-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+}
+
+.custom-chart-controls {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.control-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.control-label {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.chart-type-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+}
+
+@media (max-width: 640px) {
+  .chart-type-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.chart-type-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 8px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.chart-type-btn.active {
+  border-color: var(--accent);
+  background: var(--accent-subtle);
+}
+
+.chart-type-btn:hover:not(.active) {
+  border-color: rgba(201, 167, 106, 0.2);
+}
+
+.chart-type-icon {
+  font-size: 20px;
+}
+
+.chart-type-name {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.chart-type-btn.active .chart-type-name {
+  color: var(--accent);
+}
+
+.control-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 640px) {
+  .control-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.control-select {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: var(--text-primary);
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.2s;
+  width: 100%;
+}
+
+.control-select:focus {
+  border-color: rgba(201, 167, 106, 0.3);
+}
+
+.control-select option {
+  background: var(--bg-card);
+  color: var(--text-primary);
+}
+
+.generate-btn {
+  align-self: flex-start;
+  padding: 10px 24px;
+}
+
+.generate-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.custom-chart-output {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.custom-chart-placeholder {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+}

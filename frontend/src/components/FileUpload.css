@@ -134,3 +134,115 @@
   max-width: 600px;
   width: 100%;
 }
+
+/* ── Upload Mode Tabs ── */
+.upload-mode-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 4px;
+  max-width: 600px;
+  width: 100%;
+}
+
+.upload-mode-tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--text-secondary);
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.upload-mode-tab.active {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+.upload-mode-tab:hover:not(.active) {
+  color: var(--text-primary);
+}
+
+/* ── URL Upload Zone ── */
+.url-upload-zone {
+  width: 100%;
+  max-width: 600px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background-color: var(--bg-card);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 32px;
+  text-align: center;
+}
+
+.url-upload-icon {
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+}
+
+.url-upload-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 18px;
+  color: var(--text-primary);
+  margin: 0 0 6px 0;
+}
+
+.url-upload-subtitle {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0 0 24px 0;
+}
+
+.url-input-row {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.url-input {
+  flex: 1;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  color: var(--text-primary);
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.url-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.url-input:focus {
+  border-color: rgba(201, 167, 106, 0.3);
+}
+
+.url-submit-btn {
+  white-space: nowrap;
+  padding: 12px 20px;
+}
+
+.url-upload-hint {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin: 16px 0 0 0;
+}
