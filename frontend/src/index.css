@@ -1,6 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:wght@400;700&display=swap');
 
-:root {
+:root,
+[data-theme="dark"] {
   --bg-page: #0B0B0D;
   --bg-card: #16161A;
   --bg-elevated: #1E1E23;
@@ -15,6 +16,23 @@
   --success-text: #5FA98A;
   --error-bg: #5A2338;
   --error-text: #B0637E;
+}
+
+[data-theme="light"] {
+  --bg-page: #F8F7F4;
+  --bg-card: #FFFFFF;
+  --bg-elevated: #F0EEEB;
+  --border: #E0DDD8;
+  --text-primary: #1A1A1A;
+  --text-secondary: #6B6862;
+  --text-tertiary: #A09C96;
+  --accent: #B08D4A;
+  --accent-hover: #8A7040;
+  --accent-subtle: rgba(176,141,74,0.1);
+  --success-bg: #E6F4EE;
+  --success-text: #2D8B5F;
+  --error-bg: #FDE8E8;
+  --error-text: #C53030;
 }
 
 *, *::before, *::after {

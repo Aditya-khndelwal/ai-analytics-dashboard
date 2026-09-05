@@ -26,6 +26,51 @@
   border-bottom: 1px solid var(--border);
 }
 
+.chart-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.chart-type-select {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  color: var(--text-secondary);
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.chart-type-select:hover {
+  border-color: rgba(201, 167, 106, 0.3);
+}
+
+.chart-type-select option {
+  background: var(--bg-card);
+  color: var(--text-primary);
+}
+
+.chart-expand-btn {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 6px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.chart-expand-btn:hover {
+  border-color: rgba(201, 167, 106, 0.3);
+  color: var(--accent);
+}
+
 .chart-container {
   flex: 1;
   padding: 16px;
@@ -46,4 +91,67 @@
   width: 100%;
   color: var(--text-tertiary);
   font-family: 'Inter', sans-serif;
+}
+
+/* ── Fullscreen Chart Modal ── */
+.chart-fullscreen-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+}
+
+.chart-fullscreen-modal {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 1000px;
+  height: 80vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.chart-fullscreen-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.chart-fullscreen-title {
+  font-family: 'Inter', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.chart-close-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  transition: color 0.2s;
+}
+
+.chart-close-btn:hover {
+  color: var(--text-primary);
+}
+
+.chart-fullscreen-body {
+  flex: 1;
+  padding: 16px;
+  min-height: 0;
 }
