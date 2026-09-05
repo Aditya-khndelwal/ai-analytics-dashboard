@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import createPlotlyComponent from 'react-plotly.js/factory';
 import Plotly from 'plotly.js-dist-min';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -63,7 +63,20 @@ function getLayoutOverrides(layout, isFullscreen) {
 
 function ChartCard({ chart, index, onExpand }) {
   const [chartType, setChartType] = useState(chart.chart_type);
+  const chartRef = React.useRef(null);
   const displayData = convertChartData(chart.data, chart.chart_type, chartType);
+
+  const handleDownloadPng = () => {
+    const plotEl = chartRef.current?.el;
+    if (plotEl) {
+      Plotly.downloadImage(plotEl, {
+        format: 'png',
+        width: 1200,
+        height: 700,
+        filename: chart.title?.replace(/[^a-zA-Z0-9]/g, '_') || 'chart',
+      });
+    }
+  };
 
   return (
     <motion.div
@@ -86,6 +99,11 @@ function ChartCard({ chart, index, onExpand }) {
               <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
             ))}
           </select>
+          <button className="chart-expand-btn" onClick={handleDownloadPng} title="Download PNG">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
+            </svg>
+          </button>
           <button className="chart-expand-btn" onClick={() => onExpand(chart, chartType)} title="Fullscreen">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
@@ -95,6 +113,7 @@ function ChartCard({ chart, index, onExpand }) {
       </div>
       <div className="chart-container">
         <Plot
+          ref={chartRef}
           data={displayData}
           layout={getLayoutOverrides(chart.layout, false)}
           config={{ responsive: true, displayModeBar: 'hover', displaylogo: false }}

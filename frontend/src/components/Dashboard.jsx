@@ -82,6 +82,14 @@ function Dashboard({ sessionId, filename, activeTab, onTabChange }) {
     { label: 'Correlations', value: stats?.top_correlations?.length || 0, sub: 'significant pairs' },
   ];
 
+  // Compute data quality score from missing data percentage
+  const missingPct = stats?.summary?.total_missing_pct || 0;
+  const qualityScore = Math.max(0, Math.round(100 - missingPct));
+  const qualityLabel = qualityScore >= 90 ? 'Excellent' : qualityScore >= 70 ? 'Good' : qualityScore >= 50 ? 'Fair' : 'Poor';
+  const qualityColor = qualityScore >= 90 ? 'var(--success-text)' : qualityScore >= 70 ? 'var(--accent)' : 'var(--error-text)';
+
+  kpis.push({ label: 'Data Quality', value: qualityScore, sub: qualityLabel, suffix: '%', color: qualityColor });
+
   return (
     <div className="dashboard">
       {/* Top Bar */}
@@ -117,8 +125,8 @@ function Dashboard({ sessionId, filename, activeTab, onTabChange }) {
             whileHover={{ scale: 1.02, boxShadow: '0 8px 30px rgba(0,0,0,0.3)' }}
           >
             <div className="kpi-card-label">{kpi.label}</div>
-            <div className="kpi-card-value">
-              <CountUp target={kpi.value} />
+            <div className="kpi-card-value" style={kpi.color ? { color: kpi.color } : {}}>
+              <CountUp target={kpi.value} />{kpi.suffix || ''}
             </div>
             <div className="kpi-card-sub">{kpi.sub}</div>
           </motion.div>
