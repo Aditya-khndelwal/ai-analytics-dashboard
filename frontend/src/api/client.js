@@ -81,3 +81,9 @@ export const getSharedResults = async (token) => {
   if (!response.ok) throw new Error('Shared link not found');
   return response.json();
 };
+
+export const getSessions = async () => {
+  const response = await fetch(`${API_BASE}/api/sessions`);
+  if (!response.ok) throw new Error('Failed to fetch sessions');
+  return response.json();
+};

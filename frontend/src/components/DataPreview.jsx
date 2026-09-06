@@ -207,6 +207,28 @@ const DataPreview = ({ data }) => {
 
   const clearFilters = () => setFilters({});
 
+  const exportCsv = () => {
+    const header = columns.join(',');
+    const csvRows = filteredRows.map(row =>
+      columns.map(col => {
+        const val = row[col];
+        if (val === null || val === undefined) return '';
+        const str = String(val);
+        return str.includes(',') || str.includes('"') || str.includes('\n')
+          ? `"${str.replace(/"/g, '""')}"`
+          : str;
+      }).join(',')
+    );
+    const csv = [header, ...csvRows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `data_export_${filteredRows.length}_rows.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const getTypeBadgeClass = (type) => {
     const typeStr = (type || '').toLowerCase();
     if (typeStr.includes('int') || typeStr.includes('float') || typeStr.includes('num')) return 'type-numeric';
@@ -236,7 +258,14 @@ const DataPreview = ({ data }) => {
               </button>
             )}
           </div>
-          <div className="data-search-box">
+          <div className="data-header-actions">
+            <button className="csv-export-btn" onClick={exportCsv} title="Export as CSV">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
+              </svg>
+              CSV
+            </button>
+            <div className="data-search-box">
             <svg className="data-search-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
             </svg>
@@ -250,6 +279,7 @@ const DataPreview = ({ data }) => {
             {search && (
               <button className="data-search-clear" onClick={() => setSearch('')}>✕</button>
             )}
+          </div>
           </div>
         </div>
 

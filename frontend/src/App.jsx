@@ -5,6 +5,8 @@ import FileUpload from './components/FileUpload';
 import AnalysisProgress from './components/AnalysisProgress';
 import Dashboard from './components/Dashboard';
 import SharedDashboard from './components/SharedDashboard';
+import CommandPalette from './components/CommandPalette';
+import OnboardingTour from './components/OnboardingTour';
 
 function App() {
   const [appState, setAppState] = useState('landing');
@@ -13,6 +15,7 @@ function App() {
   const [activeTab, setActiveTab] = useState('overview');
   const [shareToken, setShareToken] = useState(null);
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark');
+  const [cmdOpen, setCmdOpen] = useState(false);
 
   // Apply theme to document
   useEffect(() => {
@@ -32,6 +35,13 @@ function App() {
 
   // ── Keyboard Shortcuts ──
   const handleKeyDown = useCallback((e) => {
+    // Ctrl+K / Cmd+K — open command palette
+    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+      e.preventDefault();
+      setCmdOpen(prev => !prev);
+      return;
+    }
+
     // Don't trigger if user is typing in an input/textarea
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
 
@@ -84,6 +94,22 @@ function App() {
     setAppState('analyzing');
   };
 
+  const handleCmdAction = (action, ...args) => {
+    switch (action) {
+      case 'new': handleNewAnalysis(); break;
+      case 'home': handleNewAnalysis(); break;
+      case 'tab': setActiveTab(args[0]); break;
+      case 'theme': toggleTheme(); break;
+      case 'load':
+        setSessionId(args[0]);
+        setFilename(args[1] || 'Dataset');
+        setAppState('dashboard');
+        setActiveTab('overview');
+        break;
+      default: break;
+    }
+  };
+
   // ── Shared dashboard: full-screen, no sidebar ──
   if (appState === 'shared' && shareToken) {
     return <SharedDashboard token={shareToken} />;
@@ -92,20 +118,24 @@ function App() {
   // ── Landing page: full-screen, no sidebar ──
   if (appState === 'landing') {
     return (
-      <AnimatePresence mode="wait">
-        <motion.div
-          key="landing"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.4 }}
-        >
-          <LandingPage
-            onUploadComplete={handleUploadComplete}
-            onSampleStart={handleSampleStart}
-          />
-        </motion.div>
-      </AnimatePresence>
+      <>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key="landing"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.4 }}
+          >
+            <LandingPage
+              onUploadComplete={handleUploadComplete}
+              onSampleStart={handleSampleStart}
+            />
+          </motion.div>
+        </AnimatePresence>
+        <CommandPalette isOpen={cmdOpen} onClose={() => setCmdOpen(false)} onAction={handleCmdAction} appState={appState} />
+        <OnboardingTour />
+      </>
     );
   }
 
@@ -203,6 +233,7 @@ function App() {
           )}
         </AnimatePresence>
       </main>
+      <CommandPalette isOpen={cmdOpen} onClose={() => setCmdOpen(false)} onAction={handleCmdAction} appState={appState} />
     </div>
   );
 }

@@ -84,6 +84,34 @@
   color: var(--text-primary);
 }
 
+.data-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.csv-export-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  color: var(--text-secondary);
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.csv-export-btn:hover {
+  border-color: rgba(201, 167, 106, 0.3);
+  color: var(--accent);
+}
+
 .table-container {
   overflow: auto;
   max-height: 500px;

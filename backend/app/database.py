@@ -115,3 +115,14 @@ async def get_session_by_token(token: str) -> Optional[str]:
         async with db.execute('SELECT session_id FROM share_tokens WHERE token = ?', (token,)) as cursor:
             row = await cursor.fetchone()
             return row[0] if row else None
+
+async def list_sessions(limit: int = 20) -> List[Dict[str, Any]]:
+    """Returns recent sessions ordered by upload date."""
+    async with aiosqlite.connect(settings.DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            'SELECT id, original_filename, uploaded_at, row_count, col_count, status FROM sessions ORDER BY uploaded_at DESC LIMIT ?',
+            (limit,)
+        ) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(row) for row in rows]

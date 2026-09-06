@@ -5,7 +5,7 @@ import math
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 
 from app.config import get_settings
-from app.database import get_session, update_session_status, save_results, get_results
+from app.database import get_session, update_session_status, save_results, get_results, list_sessions
 from app.services.parser import parse_file
 from app.services.analyzer import analyze_dataframe
 from app.services.chart_generator import generate_chart_configs
@@ -151,3 +151,10 @@ async def fetch_results(session_id: str):
         "charts": results['charts'],
         "data_preview": data_preview
     })
+
+
+@router.get("/sessions")
+async def get_sessions():
+    """Returns a list of recent analysis sessions."""
+    sessions = await list_sessions(20)
+    return {"sessions": sessions}
