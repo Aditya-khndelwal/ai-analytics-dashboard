@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import createPlotlyComponent from 'react-plotly.js/factory';
 import Plotly from 'plotly.js-dist-min';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getAnomalies, getClusters, getForecast, getImportance, getCleaning } from '../api/client';
+import { getAnomalies, getClusters, getForecast, getImportance, getCleaning, getPca, getAutoMl, getHeatmap } from '../api/client';
 import './MLInsights.css';
 
 const Plot = createPlotlyComponent(Plotly);
@@ -26,6 +26,9 @@ function MLInsights({ sessionId }) {
         case 'forecast': result = await getForecast(sessionId); break;
         case 'importance': result = await getImportance(sessionId); break;
         case 'cleaning': result = await getCleaning(sessionId); break;
+        case 'pca': result = await getPca(sessionId); break;
+        case 'automl': result = await getAutoMl(sessionId); break;
+        case 'heatmap': result = await getHeatmap(sessionId); break;
       }
       setData(p => ({ ...p, [panel]: result }));
     } catch (e) {
@@ -41,6 +44,9 @@ function MLInsights({ sessionId }) {
     { id: 'clusters', label: 'Clustering', icon: '🧮' },
     { id: 'forecast', label: 'Forecast', icon: '📈' },
     { id: 'importance', label: 'Importance', icon: '🎯' },
+    { id: 'pca', label: 'PCA', icon: '🔬' },
+    { id: 'automl', label: 'Auto ML', icon: '🤖' },
+    { id: 'heatmap', label: 'Heatmap', icon: '🔥' },
     { id: 'cleaning', label: 'Cleaning', icon: '🧹' },
   ];
 
@@ -66,6 +72,9 @@ function MLInsights({ sessionId }) {
               {activePanel === 'clusters' && <ClusterPanel data={data.clusters} sessionId={sessionId} onRefresh={(d) => setData(p => ({...p, clusters: d}))} />}
               {activePanel === 'forecast' && <ForecastPanel data={data.forecast} />}
               {activePanel === 'importance' && <ImportancePanel data={data.importance} />}
+              {activePanel === 'pca' && <PcaPanel data={data.pca} />}
+              {activePanel === 'automl' && <AutoMlPanel data={data.automl} />}
+              {activePanel === 'heatmap' && <HeatmapPanel data={data.heatmap} />}
               {activePanel === 'cleaning' && <CleaningPanel data={data.cleaning} />}
             </motion.div>
           </AnimatePresence>
@@ -336,6 +345,141 @@ function CleaningPanel({ data }) {
               <p className="ml-suggestion-fix">💡 {s.suggestion}</p>
             </div>
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PcaPanel({ data }) {
+  const { components, scatter_data, total_explained_variance, n_features, method } = data;
+  return (
+    <div className="ml-panel">
+      <div className="ml-panel-header">
+        <h3>PCA — Dimensionality Reduction</h3>
+        <span className="ml-method-badge">{method}</span>
+      </div>
+      <div className="ml-stat-row">
+        <div className="ml-stat-card accent">{total_explained_variance}%<span>Variance Explained</span></div>
+        <div className="ml-stat-card">{n_features}<span>Original Features</span></div>
+        <div className="ml-stat-card">{components.length}<span>Components</span></div>
+      </div>
+      {scatter_data && (
+        <div className="ml-chart-box">
+          <Plot data={[{ x: scatter_data.x, y: scatter_data.y, type: 'scatter', mode: 'markers', marker: { color: '#C9A76A', size: 4, opacity: 0.6 } }]}
+            layout={{ paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', font: { family: 'Inter', color: '#9C9892' },
+              xaxis: { title: `PC1 (${components[0]?.explained_variance}%)`, gridcolor: '#2A2A30', zerolinecolor: '#2A2A30' },
+              yaxis: { title: `PC2 (${components[1]?.explained_variance || 0}%)`, gridcolor: '#2A2A30', zerolinecolor: '#2A2A30' },
+              margin: { t: 10, r: 20, b: 50, l: 60 } }}
+            config={{ responsive: true, displayModeBar: false }} style={{ width: '100%', height: '360px' }} useResizeHandler />
+        </div>
+      )}
+      <div className="ml-section">
+        <h4>Component Loadings</h4>
+        {components.map(c => (
+          <div key={c.component} style={{ marginBottom: 12 }}>
+            <p className="ml-subtitle"><strong>PC{c.component}</strong> — {c.explained_variance}% variance</p>
+            <div className="ml-table-wrap">
+              <table className="ml-table">
+                <thead><tr><th>Feature</th><th>Loading</th></tr></thead>
+                <tbody>{c.top_features.map(f => (
+                  <tr key={f.feature}><td className="ml-col-name">{f.feature}</td><td>{f.loading}</td></tr>
+                ))}</tbody>
+              </table>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AutoMlPanel({ data }) {
+  const { task_type, target_column, results, best_model, metric_name, n_features, train_size, test_size, method } = data;
+  const metricKey = task_type === 'Classification' ? 'accuracy' : 'r2_score';
+  return (
+    <div className="ml-panel">
+      <div className="ml-panel-header">
+        <h3>Auto ML — Model Comparison</h3>
+        <span className="ml-method-badge">{method}</span>
+      </div>
+      <div className="ml-stat-row">
+        <div className="ml-stat-card accent">{best_model}<span>Best Model</span></div>
+        <div className="ml-stat-card">{task_type}<span>Task Type</span></div>
+        <div className="ml-stat-card">{n_features}<span>Features</span></div>
+        <div className="ml-stat-card">{train_size}/{test_size}<span>Train/Test</span></div>
+      </div>
+      <p className="ml-subtitle">Target: <strong>{target_column}</strong></p>
+      <div className="ml-chart-box">
+        <Plot data={[{
+          x: results.map(r => r.model),
+          y: results.map(r => r[metricKey]),
+          type: 'bar',
+          marker: { color: results.map((r, i) => i === 0 ? '#C9A76A' : '#5C5A56') },
+          text: results.map(r => `${r[metricKey]}%`),
+          textposition: 'outside',
+        }]} layout={{
+          paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+          font: { family: 'Inter', color: '#9C9892' },
+          yaxis: { title: metric_name + ' (%)', gridcolor: '#2A2A30', zerolinecolor: '#2A2A30' },
+          margin: { t: 20, r: 20, b: 80, l: 60 },
+        }} config={{ responsive: true, displayModeBar: false }} style={{ width: '100%', height: '320px' }} useResizeHandler />
+      </div>
+      <div className="ml-section">
+        <h4>Detailed Results</h4>
+        <div className="ml-table-wrap">
+          <table className="ml-table">
+            <thead><tr><th>Model</th><th>{metric_name}</th>{task_type === 'Classification' ? <th>F1 Score</th> : <th>RMSE</th>}</tr></thead>
+            <tbody>{results.map(r => (
+              <tr key={r.model} style={r.model === best_model ? { background: 'var(--accent-subtle)' } : {}}>
+                <td className="ml-col-name">{r.model} {r.model === best_model && '🏆'}</td>
+                <td><strong>{r[metricKey]}%</strong></td>
+                <td>{task_type === 'Classification' ? `${r.f1_score}%` : r.rmse}</td>
+              </tr>
+            ))}</tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function HeatmapPanel({ data }) {
+  const { labels, matrix, top_pairs, method } = data;
+  return (
+    <div className="ml-panel">
+      <div className="ml-panel-header">
+        <h3>Correlation Heatmap</h3>
+        <span className="ml-method-badge">{method}</span>
+      </div>
+      <div className="ml-chart-box">
+        <Plot data={[{
+          z: matrix, x: labels, y: labels, type: 'heatmap',
+          colorscale: [[0, '#B0637E'], [0.5, '#16161A'], [1, '#5FA98A']],
+          zmin: -1, zmax: 1, showscale: true,
+          colorbar: { tickfont: { color: '#9C9892' }, title: { text: 'r', font: { color: '#9C9892' } } },
+        }]} layout={{
+          paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+          font: { family: 'Inter', color: '#9C9892', size: 10 },
+          margin: { t: 10, r: 60, b: 100, l: 100 },
+          xaxis: { tickangle: -45 }, yaxis: { autorange: 'reversed' },
+        }} config={{ responsive: true, displayModeBar: false }} style={{ width: '100%', height: '450px' }} useResizeHandler />
+      </div>
+      {top_pairs && top_pairs.length > 0 && (
+        <div className="ml-section">
+          <h4>Strongest Correlations</h4>
+          <div className="ml-table-wrap">
+            <table className="ml-table">
+              <thead><tr><th>Column 1</th><th>Column 2</th><th>Correlation</th></tr></thead>
+              <tbody>{top_pairs.map((p, i) => (
+                <tr key={i}>
+                  <td className="ml-col-name">{p.col1}</td>
+                  <td className="ml-col-name">{p.col2}</td>
+                  <td style={{ color: p.correlation > 0 ? '#5FA98A' : '#B0637E', fontWeight: 600 }}>{p.correlation}</td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

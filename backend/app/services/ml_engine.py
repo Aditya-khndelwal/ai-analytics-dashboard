@@ -436,3 +436,208 @@ def _is_numeric_str(s: str) -> bool:
         return True
     except:
         return False
+
+
+def run_pca(df: pd.DataFrame, n_components: int = 2) -> dict:
+    """
+    Principal Component Analysis for dimensionality reduction.
+    """
+    from sklearn.decomposition import PCA
+    from sklearn.preprocessing import StandardScaler
+
+    numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+    if len(numeric_cols) < 2:
+        return {"error": "Need at least 2 numeric columns for PCA"}
+
+    subset = df[numeric_cols].dropna()
+    if len(subset) < 5:
+        return {"error": "Not enough data points for PCA"}
+
+    n_components = min(n_components, len(numeric_cols), len(subset))
+
+    scaler = StandardScaler()
+    scaled = scaler.fit_transform(subset)
+
+    pca = PCA(n_components=n_components)
+    transformed = pca.fit_transform(scaled)
+
+    explained = pca.explained_variance_ratio_
+    loadings = pca.components_
+
+    # Top contributing features per component
+    component_features = []
+    for i in range(n_components):
+        abs_loadings = np.abs(loadings[i])
+        top_indices = abs_loadings.argsort()[::-1][:5]
+        features = [
+            {"feature": numeric_cols[idx], "loading": round(float(loadings[i][idx]), 4)}
+            for idx in top_indices
+        ]
+        component_features.append({
+            "component": i + 1,
+            "explained_variance": round(float(explained[i]) * 100, 2),
+            "top_features": features,
+        })
+
+    scatter = {
+        "x": transformed[:, 0].tolist()[:500],
+        "y": transformed[:, 1].tolist()[:500] if n_components >= 2 else [0] * min(500, len(transformed)),
+    }
+
+    return {
+        "n_components": n_components,
+        "total_explained_variance": round(float(sum(explained)) * 100, 2),
+        "components": component_features,
+        "scatter_data": scatter,
+        "n_features": len(numeric_cols),
+        "features_used": numeric_cols,
+        "method": f"PCA ({n_components} components, StandardScaler)",
+    }
+
+
+def auto_ml(df: pd.DataFrame, target_col: str = None) -> dict:
+    """
+    Auto ML — trains multiple models and compares performance.
+    Auto-detects classification vs regression based on target column.
+    """
+    from sklearn.model_selection import train_test_split
+    from sklearn.preprocessing import StandardScaler, LabelEncoder
+    from sklearn.linear_model import LinearRegression, LogisticRegression
+    from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
+    from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+    from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
+    from sklearn.metrics import accuracy_score, f1_score, mean_squared_error, r2_score
+
+    numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+
+    if not target_col:
+        if numeric_cols:
+            target_col = numeric_cols[-1]
+        else:
+            return {"error": "No suitable target column found"}
+
+    if target_col not in df.columns:
+        return {"error": f"Column '{target_col}' not found"}
+
+    feature_cols = [c for c in numeric_cols if c != target_col]
+    if not feature_cols:
+        return {"error": "Need at least 1 numeric feature column"}
+
+    subset = df[feature_cols + [target_col]].dropna()
+    if len(subset) < 20:
+        return {"error": f"Not enough clean data rows ({len(subset)}), need 20+"}
+
+    X = subset[feature_cols].values
+    y = subset[target_col].values
+
+    # Determine task type
+    n_unique = len(np.unique(y))
+    is_classification = n_unique <= 20 and (not np.issubdtype(type(y[0]), np.floating) or n_unique <= 10)
+
+    # Scale features
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+
+    # Split
+    test_size = min(0.2, max(0.1, 10 / len(subset)))
+    X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=test_size, random_state=42)
+
+    results = []
+
+    if is_classification:
+        le = LabelEncoder()
+        y_train_enc = le.fit_transform(y_train.astype(str))
+        y_test_enc = le.transform(y_test.astype(str))
+
+        models = [
+            ("Logistic Regression", LogisticRegression(max_iter=500, random_state=42)),
+            ("Decision Tree", DecisionTreeClassifier(max_depth=10, random_state=42)),
+            ("Random Forest", RandomForestClassifier(n_estimators=50, max_depth=10, random_state=42)),
+            ("K-Nearest Neighbors", KNeighborsClassifier(n_neighbors=min(5, len(X_train)))),
+        ]
+
+        for name, model in models:
+            try:
+                model.fit(X_train, y_train_enc)
+                y_pred = model.predict(X_test)
+                acc = round(accuracy_score(y_test_enc, y_pred) * 100, 2)
+                f1 = round(f1_score(y_test_enc, y_pred, average='weighted', zero_division=0) * 100, 2)
+                results.append({"model": name, "accuracy": acc, "f1_score": f1})
+            except Exception as e:
+                results.append({"model": name, "accuracy": 0, "f1_score": 0, "error": str(e)})
+
+        results.sort(key=lambda x: x.get("accuracy", 0), reverse=True)
+        best = results[0]
+        task_type = "Classification"
+        metric_name = "Accuracy"
+    else:
+        models = [
+            ("Linear Regression", LinearRegression()),
+            ("Decision Tree", DecisionTreeRegressor(max_depth=10, random_state=42)),
+            ("Random Forest", RandomForestRegressor(n_estimators=50, max_depth=10, random_state=42)),
+            ("K-Nearest Neighbors", KNeighborsRegressor(n_neighbors=min(5, len(X_train)))),
+        ]
+
+        for name, model in models:
+            try:
+                model.fit(X_train, y_train)
+                y_pred = model.predict(X_test)
+                r2 = round(r2_score(y_test, y_pred) * 100, 2)
+                rmse = round(float(np.sqrt(mean_squared_error(y_test, y_pred))), 4)
+                results.append({"model": name, "r2_score": r2, "rmse": rmse})
+            except Exception as e:
+                results.append({"model": name, "r2_score": 0, "rmse": 0, "error": str(e)})
+
+        results.sort(key=lambda x: x.get("r2_score", 0), reverse=True)
+        best = results[0]
+        task_type = "Regression"
+        metric_name = "R² Score"
+
+    return {
+        "task_type": task_type,
+        "target_column": target_col,
+        "feature_columns": feature_cols,
+        "n_features": len(feature_cols),
+        "train_size": len(X_train),
+        "test_size": len(X_test),
+        "results": results,
+        "best_model": best["model"],
+        "metric_name": metric_name,
+        "method": f"Auto ML — {task_type} with StandardScaler + 80/20 split",
+    }
+
+
+def correlation_heatmap(df: pd.DataFrame) -> dict:
+    """
+    Generate correlation matrix data for a heatmap visualization.
+    """
+    numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+    if len(numeric_cols) < 2:
+        return {"error": "Need at least 2 numeric columns"}
+
+    # Cap at 20 columns for readability
+    use_cols = numeric_cols[:20]
+    corr = df[use_cols].corr().round(4)
+
+    # Convert to list of lists for Plotly heatmap
+    z = corr.values.tolist()
+    labels = use_cols
+
+    # Find strongest correlations
+    pairs = []
+    for i in range(len(use_cols)):
+        for j in range(i + 1, len(use_cols)):
+            pairs.append({
+                "col1": use_cols[i],
+                "col2": use_cols[j],
+                "correlation": round(float(corr.iloc[i, j]), 4),
+            })
+    pairs.sort(key=lambda x: abs(x["correlation"]), reverse=True)
+
+    return {
+        "labels": labels,
+        "matrix": z,
+        "top_pairs": pairs[:10],
+        "n_features": len(use_cols),
+        "method": "Pearson Correlation Matrix",
+    }

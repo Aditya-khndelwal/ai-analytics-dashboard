@@ -39,8 +39,12 @@ async def run_analysis_pipeline(session_id: str, filepath: str, schema: list, or
         charts = generate_chart_configs(df, schema, analysis_results)
         
         await update_session_status(session_id, 'narrating')
-        # Generate narrative
-        narrative = await generate_narrative(analysis_results, schema, original_filename)
+        # Generate narrative — try Gemini first, fall back to local
+        try:
+            narrative = await generate_narrative(analysis_results, schema, original_filename)
+        except Exception:
+            from app.services.local_narrator import generate_local_narrative
+            narrative = generate_local_narrative(df, analysis_results)
         
         # Save results
         await save_results(

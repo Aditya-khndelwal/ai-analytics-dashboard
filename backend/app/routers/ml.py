@@ -17,7 +17,11 @@ from app.services.ml_engine import (
     forecast_timeseries,
     compute_feature_importance,
     suggest_cleaning,
+    run_pca,
+    auto_ml,
+    correlation_heatmap,
 )
+from app.services.local_query import answer_query
 
 router = APIRouter()
 settings = get_settings()
@@ -132,3 +136,83 @@ async def get_cleaning_suggestions(session_id: str):
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Data cleaning analysis failed: {str(e)}")
+
+
+class PcaRequest(BaseModel):
+    n_components: int = 2
+
+
+class AutoMlRequest(BaseModel):
+    target_col: Optional[str] = None
+
+
+class LocalQueryRequest(BaseModel):
+    question: str
+
+
+@router.post("/ml/pca/{session_id}")
+async def get_pca(session_id: str, request: PcaRequest):
+    """PCA dimensionality reduction."""
+    session = await get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    try:
+        df = _load_dataframe(session)
+        result = run_pca(df, n_components=request.n_components)
+        if "error" in result:
+            raise HTTPException(status_code=400, detail=result["error"])
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"PCA failed: {str(e)}")
+
+
+@router.post("/ml/automl/{session_id}")
+async def get_automl(session_id: str, request: AutoMlRequest):
+    """Auto ML — train multiple models and compare."""
+    session = await get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    try:
+        df = _load_dataframe(session)
+        result = auto_ml(df, target_col=request.target_col)
+        if "error" in result:
+            raise HTTPException(status_code=400, detail=result["error"])
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Auto ML failed: {str(e)}")
+
+
+@router.get("/ml/heatmap/{session_id}")
+async def get_heatmap(session_id: str):
+    """Correlation heatmap data."""
+    session = await get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    try:
+        df = _load_dataframe(session)
+        result = correlation_heatmap(df)
+        if "error" in result:
+            raise HTTPException(status_code=400, detail=result["error"])
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Heatmap failed: {str(e)}")
+
+
+@router.post("/ml/query/{session_id}")
+async def local_query(session_id: str, request: LocalQueryRequest):
+    """Answer data questions using local Pandas engine (no Gemini)."""
+    session = await get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    try:
+        df = _load_dataframe(session)
+        result = answer_query(df, request.question)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Query failed: {str(e)}")

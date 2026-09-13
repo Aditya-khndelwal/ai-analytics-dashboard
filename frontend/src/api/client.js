@@ -127,3 +127,36 @@ export const getCleaning = async (sessionId) => {
   if (!r.ok) throw new Error('Data cleaning analysis failed');
   return r.json();
 };
+
+export const getPca = async (sessionId, nComponents = 2) => {
+  const r = await fetch(`${API_BASE}/api/ml/pca/${sessionId}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ n_components: nComponents }),
+  });
+  if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || 'PCA failed'); }
+  return r.json();
+};
+
+export const getAutoMl = async (sessionId, targetCol = null) => {
+  const r = await fetch(`${API_BASE}/api/ml/automl/${sessionId}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ target_col: targetCol }),
+  });
+  if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || 'Auto ML failed'); }
+  return r.json();
+};
+
+export const getHeatmap = async (sessionId) => {
+  const r = await fetch(`${API_BASE}/api/ml/heatmap/${sessionId}`);
+  if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || 'Heatmap failed'); }
+  return r.json();
+};
+
+export const localQuery = async (sessionId, question) => {
+  const r = await fetch(`${API_BASE}/api/ml/query/${sessionId}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ question }),
+  });
+  if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || 'Query failed'); }
+  return r.json();
+};
