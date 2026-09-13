@@ -7,6 +7,7 @@ import DataPreview from './DataPreview';
 import ExportPanel from './ExportPanel';
 import ChatPanel from './ChatPanel';
 import CustomChart from './CustomChart';
+import MLInsights from './MLInsights';
 import './Dashboard.css';
 import './ChatPanel.css';
 
@@ -135,7 +136,7 @@ function Dashboard({ sessionId, filename, activeTab, onTabChange }) {
 
       {/* Tab Navigation */}
       <div className="tab-bar">
-        {['overview', 'charts', 'custom', 'data', 'export'].map(tab => (
+        {['overview', 'charts', 'custom', 'ml', 'data', 'export'].map(tab => (
           <button
             key={tab}
             className={`tab-item ${activeTab === tab ? 'active' : ''}`}
@@ -169,6 +170,7 @@ function Dashboard({ sessionId, filename, activeTab, onTabChange }) {
             )}
             {activeTab === 'charts' && <ChartGrid charts={charts || []} />}
             {activeTab === 'custom' && <CustomChart data={data_preview} session={session} />}
+            {activeTab === 'ml' && <MLInsights sessionId={sessionId} />}
             {activeTab === 'data' && <DataPreview data={data_preview} session={session} />}
             {activeTab === 'export' && <ExportPanel sessionId={sessionId} filename={filename} />}
           </motion.div>

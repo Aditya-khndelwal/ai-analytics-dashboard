@@ -1,0 +1,77 @@
+/* ── ML Insights ── */
+.ml-insights { display: flex; flex-direction: column; gap: 16px; width: 100%; }
+
+.ml-tabs { display: flex; gap: 4px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 4px; }
+.ml-tab { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 12px; border: none; border-radius: 8px; background: none; color: var(--text-secondary); font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s; }
+.ml-tab.active { background: var(--bg-elevated); color: var(--text-primary); }
+.ml-tab:hover:not(.active) { color: var(--text-primary); }
+.ml-tab-icon { font-size: 14px; }
+.ml-tab-label { }
+
+@media (max-width: 640px) { .ml-tab-label { display: none; } }
+
+.ml-content { min-height: 300px; }
+.ml-loading { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 60px; color: var(--text-secondary); font-family: 'Inter', sans-serif; font-size: 13px; }
+.ml-spinner { width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: ml-spin 0.6s linear infinite; }
+@keyframes ml-spin { to { transform: rotate(360deg); } }
+.ml-error { padding: 20px; background: var(--error-bg); color: var(--error-text); border-radius: 10px; font-family: 'Inter', sans-serif; font-size: 13px; text-align: center; }
+.ml-empty { padding: 40px; text-align: center; color: var(--text-secondary); font-family: 'Inter', sans-serif; font-size: 14px; }
+
+/* Panel */
+.ml-panel { display: flex; flex-direction: column; gap: 20px; }
+.ml-panel-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.ml-panel-header h3 { font-family: 'Inter', sans-serif; font-size: 18px; font-weight: 600; color: var(--text-primary); margin: 0; }
+.ml-method-badge { background: var(--accent-subtle); color: var(--accent); font-family: 'Inter', sans-serif; font-size: 10px; font-weight: 600; padding: 4px 10px; border-radius: 99px; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.ml-subtitle { font-family: 'Inter', sans-serif; font-size: 13px; color: var(--text-secondary); margin: 0; }
+
+/* Stat Cards */
+.ml-stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; }
+.ml-stat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; text-align: center; font-family: 'Inter', sans-serif; font-size: 22px; font-weight: 700; color: var(--text-primary); }
+.ml-stat-card.accent { color: var(--accent); }
+.ml-stat-card span { display: block; font-size: 10px; font-weight: 500; color: var(--text-tertiary); text-transform: uppercase; margin-top: 4px; letter-spacing: 0.5px; }
+
+/* Controls */
+.ml-controls-row { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; }
+.ml-controls-row label { font-family: 'Inter', sans-serif; font-size: 12px; color: var(--text-secondary); font-weight: 600; }
+.ml-controls-row input[type="range"] { flex: 1; accent-color: var(--accent); }
+.ml-range-val { font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 700; color: var(--accent); min-width: 20px; text-align: center; }
+.ml-btn { background: var(--accent); border: none; border-radius: 6px; padding: 6px 14px; color: #0B0B0D; font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; }
+.ml-btn:disabled { opacity: 0.5; }
+
+/* Section */
+.ml-section { display: flex; flex-direction: column; gap: 10px; }
+.ml-section h4 { font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin: 0; }
+
+/* Table */
+.ml-table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; }
+.ml-table { width: 100%; border-collapse: collapse; font-family: 'Inter', sans-serif; font-size: 12px; }
+.ml-table th { background: var(--bg-elevated); padding: 10px 14px; text-align: left; color: var(--text-secondary); font-weight: 600; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.ml-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text-primary); }
+.ml-table tr:last-child td { border-bottom: none; }
+.ml-table tr:hover td { background: var(--bg-elevated); }
+.ml-col-name { font-weight: 600; color: var(--accent); }
+.ml-bounds { font-size: 11px; color: var(--text-tertiary); font-family: monospace; }
+.ml-count-badge { padding: 2px 8px; border-radius: 99px; font-weight: 600; font-size: 11px; }
+.ml-count-badge.warn { background: var(--error-bg); color: var(--error-text); }
+
+/* Chart */
+.ml-chart-box { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 12px; }
+
+/* Cluster dot */
+.ml-cluster-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+
+/* Suggestions */
+.ml-suggestions { display: flex; flex-direction: column; gap: 10px; }
+.ml-suggestion { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 14px; border-left: 3px solid var(--border); }
+.ml-suggestion.high { border-left-color: var(--error-text); }
+.ml-suggestion.medium { border-left-color: var(--accent); }
+.ml-suggestion.low { border-left-color: var(--text-tertiary); }
+.ml-suggestion-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.ml-severity-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.ml-severity-dot.high { background: var(--error-text); }
+.ml-severity-dot.medium { background: var(--accent); }
+.ml-severity-dot.low { background: var(--text-tertiary); }
+.ml-suggestion-col { font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.ml-suggestion-type { font-family: 'Inter', sans-serif; font-size: 10px; color: var(--text-tertiary); text-transform: uppercase; background: var(--bg-elevated); padding: 2px 6px; border-radius: 4px; }
+.ml-suggestion-issue { font-family: 'Inter', sans-serif; font-size: 13px; color: var(--text-secondary); margin: 0 0 4px 0; }
+.ml-suggestion-fix { font-family: 'Inter', sans-serif; font-size: 12px; color: var(--success-text); margin: 0; }

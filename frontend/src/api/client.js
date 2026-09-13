@@ -87,3 +87,43 @@ export const getSessions = async () => {
   if (!response.ok) throw new Error('Failed to fetch sessions');
   return response.json();
 };
+
+// ── ML Endpoints ──
+export const getAnomalies = async (sessionId) => {
+  const r = await fetch(`${API_BASE}/api/ml/anomalies/${sessionId}`);
+  if (!r.ok) throw new Error('Anomaly detection failed');
+  return r.json();
+};
+
+export const getClusters = async (sessionId, columns = null, nClusters = 3) => {
+  const r = await fetch(`${API_BASE}/api/ml/cluster/${sessionId}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ columns, n_clusters: nClusters }),
+  });
+  if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || 'Clustering failed'); }
+  return r.json();
+};
+
+export const getForecast = async (sessionId, dateCol = null, valueCol = null, periods = 10) => {
+  const r = await fetch(`${API_BASE}/api/ml/forecast/${sessionId}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ date_col: dateCol, value_col: valueCol, periods }),
+  });
+  if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || 'Forecasting failed'); }
+  return r.json();
+};
+
+export const getImportance = async (sessionId, targetCol = null) => {
+  const r = await fetch(`${API_BASE}/api/ml/importance/${sessionId}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ target_col: targetCol }),
+  });
+  if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || 'Feature importance failed'); }
+  return r.json();
+};
+
+export const getCleaning = async (sessionId) => {
+  const r = await fetch(`${API_BASE}/api/ml/cleaning/${sessionId}`);
+  if (!r.ok) throw new Error('Data cleaning analysis failed');
+  return r.json();
+};
