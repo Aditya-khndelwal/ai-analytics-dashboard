@@ -115,7 +115,7 @@ async def fetch_results(session_id: str):
         if os.path.exists(filepath):
             parsed = parse_file(filepath)
             df = parsed['dataframe']
-            preview_df = df.head(50)
+            preview_df = df.head(500)
             # Convert to JSON-safe format
             rows = preview_df.where(preview_df.notna(), None).to_dict(orient='records')
             # Convert any non-serializable types
@@ -135,6 +135,7 @@ async def fetch_results(session_id: str):
             data_preview = {
                 'columns': list(df.columns),
                 'rows': clean_rows,
+                'total_rows': len(df),
                 'column_types': column_types
             }
     except Exception as e:
