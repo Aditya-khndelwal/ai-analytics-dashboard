@@ -142,8 +142,11 @@ def forecast_timeseries(df: pd.DataFrame, date_col: str = None, value_col: str =
     """
     Simple time series forecasting using linear regression + moving average.
     Auto-detects date and value columns if not specified.
+    Falls back to index-based trend analysis if no date column exists.
     """
     from sklearn.linear_model import LinearRegression
+
+    use_index = False
 
     # Auto-detect date column
     if not date_col:
@@ -163,7 +166,7 @@ def forecast_timeseries(df: pd.DataFrame, date_col: str = None, value_col: str =
                     continue
 
     if not date_col:
-        return {"error": "No date/time column found in dataset"}
+        use_index = True
 
     # Auto-detect value column
     if not value_col:
@@ -172,17 +175,24 @@ def forecast_timeseries(df: pd.DataFrame, date_col: str = None, value_col: str =
             return {"error": "No numeric column found for forecasting"}
         value_col = numeric_cols[0]
 
-    # Prepare time series
-    ts = df[[date_col, value_col]].dropna()
-    ts = ts.sort_values(date_col)
-    ts[date_col] = pd.to_datetime(ts[date_col], errors='coerce')
-    ts = ts.dropna()
-
-    if len(ts) < 5:
-        return {"error": "Not enough data points for forecasting (need 5+)"}
-
-    values = ts[value_col].values.astype(float)
-    dates = ts[date_col].values
+    # Prepare data
+    if use_index:
+        values = df[value_col].dropna().values.astype(float)
+        if len(values) < 5:
+            return {"error": "Not enough data points for forecasting (need 5+)"}
+        historical_dates = list(range(len(values)))
+        x_label = "Row Index"
+    else:
+        ts = df[[date_col, value_col]].dropna()
+        ts = ts.sort_values(date_col)
+        ts[date_col] = pd.to_datetime(ts[date_col], errors='coerce')
+        ts = ts.dropna()
+        if len(ts) < 5:
+            return {"error": "Not enough data points for forecasting (need 5+)"}
+        values = ts[value_col].values.astype(float)
+        dates = ts[date_col].values
+        historical_dates = [pd.Timestamp(d).isoformat() for d in dates]
+        x_label = date_col
 
     # Feature: numeric index
     X = np.arange(len(values)).reshape(-1, 1)
@@ -200,18 +210,21 @@ def forecast_timeseries(df: pd.DataFrame, date_col: str = None, value_col: str =
     future_X = np.arange(len(values), len(values) + periods).reshape(-1, 1)
     forecast_values = lr.predict(future_X).tolist()
 
-    # Generate future dates
-    last_date = pd.Timestamp(dates[-1])
-    if len(dates) > 1:
-        avg_delta = (pd.Timestamp(dates[-1]) - pd.Timestamp(dates[0])) / (len(dates) - 1)
+    # Generate future labels
+    if use_index:
+        future_dates = list(range(len(values), len(values) + periods))
     else:
-        avg_delta = pd.Timedelta(days=1)
-    future_dates = [(last_date + avg_delta * (i + 1)).isoformat() for i in range(periods)]
+        last_date = pd.Timestamp(dates[-1])
+        if len(dates) > 1:
+            avg_delta = (pd.Timestamp(dates[-1]) - pd.Timestamp(dates[0])) / (len(dates) - 1)
+        else:
+            avg_delta = pd.Timedelta(days=1)
+        future_dates = [(last_date + avg_delta * (i + 1)).isoformat() for i in range(periods)]
 
     return {
-        "date_col": date_col,
+        "date_col": date_col or "Row Index",
         "value_col": value_col,
-        "historical_dates": [pd.Timestamp(d).isoformat() for d in dates],
+        "historical_dates": historical_dates,
         "historical_values": values.tolist(),
         "trend_line": trend_line,
         "moving_average": ma,
