@@ -63,7 +63,13 @@ function MLInsights({ sessionId }) {
 
       <div className="ml-content">
         {loading[activePanel] && <div className="ml-loading"><div className="ml-spinner" /><span>Running {activePanel}...</span></div>}
-        {errors[activePanel] && <div className="ml-error">{errors[activePanel]}</div>}
+        {errors[activePanel] && (
+          <div className="ml-error">
+            <p>⚠️ {errors[activePanel]}</p>
+            <p style={{ fontSize: 11, marginTop: 8, opacity: 0.7 }}>Make sure the backend server is running and the dataset is still available.</p>
+            <button className="ml-btn" style={{ marginTop: 10 }} onClick={() => { setErrors(p => ({...p, [activePanel]: null})); setData(p => ({...p, [activePanel]: undefined})); loadPanel(activePanel); }}>Retry</button>
+          </div>
+        )}
 
         {!loading[activePanel] && !errors[activePanel] && data[activePanel] && (
           <AnimatePresence mode="wait">
