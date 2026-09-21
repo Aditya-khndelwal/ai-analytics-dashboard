@@ -164,11 +164,11 @@ function Dashboard({ sessionId, filename, activeTab, onTabChange }) {
                   <NarrativePanel narrative={narrative} />
                 </div>
                 <div className="overview-charts">
-                  <ChartGrid charts={charts?.slice(0, 4) || []} />
+                  <ChartGrid charts={charts?.slice(0, 4) || []} dataPreview={data_preview} />
                 </div>
               </div>
             )}
-            {activeTab === 'charts' && <ChartGrid charts={charts || []} />}
+            {activeTab === 'charts' && <ChartGrid charts={charts || []} dataPreview={data_preview} />}
             {activeTab === 'custom' && <CustomChart data={data_preview} session={session} />}
             {activeTab === 'ml' && <MLInsights sessionId={sessionId} />}
             {activeTab === 'data' && <DataPreview data={data_preview} session={session} />}
