@@ -236,7 +236,9 @@ function ClusterPanel({ data, sessionId, onRefresh }) {
 }
 
 function ForecastPanel({ data }) {
-  const { historical_dates, historical_values, trend_line, forecast_dates, forecast_values, moving_average, method, slope, r_squared, date_col, value_col } = data;
+  if (!data || !data.historical_values) return <div className="ml-empty">No forecast data available</div>;
+  const { historical_dates = [], historical_values = [], trend_line = [], forecast_dates = [], forecast_values = [], moving_average = [], method = '', slope = 0, r_squared = 0, date_col = 'Index', value_col = 'Value' } = data;
+  const isIndexBased = date_col === 'Row Index';
 
   const traces = [
     { x: historical_dates, y: historical_values, type: 'scatter', mode: 'lines', name: 'Actual', line: { color: '#9C9892', width: 1.5 } },
@@ -248,11 +250,11 @@ function ForecastPanel({ data }) {
   return (
     <div className="ml-panel">
       <div className="ml-panel-header">
-        <h3>Time Series Forecast</h3>
+        <h3>{isIndexBased ? 'Trend Analysis & Forecast' : 'Time Series Forecast'}</h3>
         <span className="ml-method-badge">{method}</span>
       </div>
       <div className="ml-stat-row">
-        <div className="ml-stat-card">{date_col}<span>Date Column</span></div>
+        <div className="ml-stat-card">{date_col}<span>{isIndexBased ? 'X Axis' : 'Date Column'}</span></div>
         <div className="ml-stat-card">{value_col}<span>Value Column</span></div>
         <div className="ml-stat-card accent">{r_squared}<span>R² Score</span></div>
         <div className="ml-stat-card">{slope > 0 ? '↑' : '↓'} {Math.abs(slope)}<span>Slope</span></div>
@@ -261,7 +263,7 @@ function ForecastPanel({ data }) {
         <Plot data={traces} layout={{
           paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
           font: { family: 'Inter', color: '#9C9892' },
-          xaxis: { gridcolor: '#2A2A30', zerolinecolor: '#2A2A30' },
+          xaxis: { title: isIndexBased ? 'Row Index' : '', gridcolor: '#2A2A30', zerolinecolor: '#2A2A30' },
           yaxis: { title: value_col, gridcolor: '#2A2A30', zerolinecolor: '#2A2A30' },
           margin: { t: 10, r: 20, b: 50, l: 60 }, legend: { font: { color: '#9C9892' } },
         }} config={{ responsive: true, displayModeBar: false }} style={{ width: '100%', height: '360px' }} useResizeHandler />
