@@ -37,5 +37,19 @@ app.include_router(ml.router, prefix="/api")
 
 @app.get("/api/health")
 async def health_check():
-    """Health check endpoint."""
-    return {"status": "ok"}
+    """Health check endpoint with ML status."""
+    ml_ok = False
+    ml_error = None
+    try:
+        import sklearn
+        import statsmodels
+        ml_ok = True
+    except ImportError as e:
+        ml_error = str(e)
+    
+    return {
+        "status": "ok",
+        "ml_available": ml_ok,
+        "ml_error": ml_error,
+        "routes": [r.path for r in app.routes if hasattr(r, 'path')]
+    }
