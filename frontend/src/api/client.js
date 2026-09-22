@@ -89,9 +89,14 @@ export const getSessions = async () => {
 };
 
 // ── ML Endpoints ──
+const mlError = async (r, fallback) => {
+  const e = await r.json().catch(() => ({}));
+  throw new Error(e.detail || `${fallback} (HTTP ${r.status})`);
+};
+
 export const getAnomalies = async (sessionId) => {
   const r = await fetch(`${API_BASE}/api/ml/anomalies/${sessionId}`);
-  if (!r.ok) throw new Error('Anomaly detection failed');
+  if (!r.ok) await mlError(r, 'Anomaly detection failed');
   return r.json();
 };
 
@@ -100,7 +105,7 @@ export const getClusters = async (sessionId, columns = null, nClusters = 3) => {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ columns, n_clusters: nClusters }),
   });
-  if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || 'Clustering failed'); }
+  if (!r.ok) await mlError(r, 'Clustering failed');
   return r.json();
 };
 
@@ -109,7 +114,7 @@ export const getForecast = async (sessionId, dateCol = null, valueCol = null, pe
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ date_col: dateCol, value_col: valueCol, periods }),
   });
-  if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || 'Forecasting failed'); }
+  if (!r.ok) await mlError(r, 'Forecasting failed');
   return r.json();
 };
 
@@ -118,13 +123,13 @@ export const getImportance = async (sessionId, targetCol = null) => {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ target_col: targetCol }),
   });
-  if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || 'Feature importance failed'); }
+  if (!r.ok) await mlError(r, 'Feature importance failed');
   return r.json();
 };
 
 export const getCleaning = async (sessionId) => {
   const r = await fetch(`${API_BASE}/api/ml/cleaning/${sessionId}`);
-  if (!r.ok) throw new Error('Data cleaning analysis failed');
+  if (!r.ok) await mlError(r, 'Data cleaning analysis failed');
   return r.json();
 };
 
@@ -133,7 +138,7 @@ export const getPca = async (sessionId, nComponents = 2) => {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ n_components: nComponents }),
   });
-  if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || 'PCA failed'); }
+  if (!r.ok) await mlError(r, 'PCA failed');
   return r.json();
 };
 
@@ -142,13 +147,13 @@ export const getAutoMl = async (sessionId, targetCol = null) => {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ target_col: targetCol }),
   });
-  if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || 'Auto ML failed'); }
+  if (!r.ok) await mlError(r, 'Auto ML failed');
   return r.json();
 };
 
 export const getHeatmap = async (sessionId) => {
   const r = await fetch(`${API_BASE}/api/ml/heatmap/${sessionId}`);
-  if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || 'Heatmap failed'); }
+  if (!r.ok) await mlError(r, 'Heatmap failed');
   return r.json();
 };
 
@@ -157,6 +162,6 @@ export const localQuery = async (sessionId, question) => {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ question }),
   });
-  if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || 'Query failed'); }
+  if (!r.ok) await mlError(r, 'Query failed');
   return r.json();
 };
