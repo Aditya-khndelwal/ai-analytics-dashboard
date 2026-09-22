@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from typing import Optional
 
 from app.config import get_settings
-from app.database import create_session
+from app.database import create_session, save_csv_data
 from app.services.parser import parse_file
 
 router = APIRouter()
@@ -55,6 +55,13 @@ async def upload_file(file: UploadFile = File(...)):
             col_count=col_count,
             column_info=schema
         )
+
+        # Persist CSV in DB so it survives server restarts
+        try:
+            df = parsed_data['dataframe']
+            await save_csv_data(session_id, df.to_csv(index=False))
+        except Exception:
+            pass  # Non-critical — file on disk is primary
         
         return {
             "session_id": session_id,

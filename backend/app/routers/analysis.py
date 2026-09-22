@@ -111,27 +111,37 @@ async def fetch_results(session_id: str):
     # Generate data preview
     data_preview = None
     try:
+        import pandas as pd
+        df = None
         filepath = os.path.join(settings.UPLOAD_DIR, session['filename'])
         if os.path.exists(filepath):
             parsed = parse_file(filepath)
             df = parsed['dataframe']
+            column_types = {s['name']: s['inferred_type'] for s in parsed['schema']}
+        else:
+            # File missing — try loading from database
+            from app.database import get_csv_data
+            import io
+            csv_text = await get_csv_data(session_id)
+            if csv_text:
+                df = pd.read_csv(io.StringIO(csv_text))
+                column_types = {col: str(df[col].dtype) for col in df.columns}
+
+        if df is not None:
             preview_df = df.head(500)
-            # Convert to JSON-safe format
             rows = preview_df.where(preview_df.notna(), None).to_dict(orient='records')
-            # Convert any non-serializable types
             clean_rows = []
             for row in rows:
                 clean_row = {}
                 for k, v in row.items():
-                    if hasattr(v, 'item'):  # numpy types
+                    if hasattr(v, 'item'):
                         clean_row[k] = v.item()
-                    elif hasattr(v, 'isoformat'):  # datetime
+                    elif hasattr(v, 'isoformat'):
                         clean_row[k] = v.isoformat()
                     else:
                         clean_row[k] = v
                 clean_rows.append(clean_row)
 
-            column_types = {s['name']: s['inferred_type'] for s in parsed['schema']}
             data_preview = {
                 'columns': list(df.columns),
                 'rows': clean_rows,

@@ -40,6 +40,13 @@ async def init_db() -> None:
                 FOREIGN KEY(session_id) REFERENCES sessions(id)
             )
         ''')
+        await db.execute('''
+            CREATE TABLE IF NOT EXISTS csv_data (
+                session_id TEXT PRIMARY KEY,
+                csv_text TEXT,
+                FOREIGN KEY(session_id) REFERENCES sessions(id)
+            )
+        ''')
         await db.commit()
 
 async def create_session(original_filename: str, filename: str, uploaded_at: str, row_count: int, col_count: int, column_info: List[Dict[str, Any]]) -> str:
@@ -126,3 +133,19 @@ async def list_sessions(limit: int = 20) -> List[Dict[str, Any]]:
         ) as cursor:
             rows = await cursor.fetchall()
             return [dict(row) for row in rows]
+
+async def save_csv_data(session_id: str, csv_text: str) -> None:
+    """Stores CSV content in the database so it survives server restarts."""
+    async with aiosqlite.connect(settings.DB_PATH) as db:
+        await db.execute(
+            'INSERT OR REPLACE INTO csv_data (session_id, csv_text) VALUES (?, ?)',
+            (session_id, csv_text)
+        )
+        await db.commit()
+
+async def get_csv_data(session_id: str) -> Optional[str]:
+    """Retrieves stored CSV content for a session."""
+    async with aiosqlite.connect(settings.DB_PATH) as db:
+        async with db.execute('SELECT csv_text FROM csv_data WHERE session_id = ?', (session_id,)) as cursor:
+            row = await cursor.fetchone()
+            return row[0] if row else None

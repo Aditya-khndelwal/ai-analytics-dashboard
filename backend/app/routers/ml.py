@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from typing import Optional, List
 
 from app.config import get_settings
-from app.database import get_session
+from app.database import get_session, get_csv_data
 from app.services.parser import parse_file
 from app.services.ml_engine import (
     detect_anomalies,
@@ -27,13 +27,20 @@ router = APIRouter()
 settings = get_settings()
 
 
-def _load_dataframe(session: dict) -> pd.DataFrame:
-    """Load the DataFrame for a session."""
+async def _load_dataframe(session: dict) -> pd.DataFrame:
+    """Load the DataFrame for a session. Tries file first, falls back to DB."""
     filepath = os.path.join(settings.UPLOAD_DIR, session['filename'])
-    if not os.path.exists(filepath):
-        raise HTTPException(status_code=404, detail="Data file not found")
-    parsed = parse_file(filepath)
-    return parsed['dataframe']
+    if os.path.exists(filepath):
+        parsed = parse_file(filepath)
+        return parsed['dataframe']
+
+    # File missing (Render restart) — try loading from database
+    csv_text = await get_csv_data(session['id'])
+    if csv_text:
+        import io
+        return pd.read_csv(io.StringIO(csv_text))
+
+    raise HTTPException(status_code=404, detail="Data file not found. Please re-upload your dataset.")
 
 
 class ClusterRequest(BaseModel):
@@ -59,7 +66,7 @@ async def get_anomalies(session_id: str):
         raise HTTPException(status_code=404, detail="Session not found")
 
     try:
-        df = _load_dataframe(session)
+        df = await _load_dataframe(session)
         result = detect_anomalies(df)
         return result
     except Exception as e:
@@ -74,7 +81,7 @@ async def get_clusters(session_id: str, request: ClusterRequest):
         raise HTTPException(status_code=404, detail="Session not found")
 
     try:
-        df = _load_dataframe(session)
+        df = await _load_dataframe(session)
         result = cluster_data(df, columns=request.columns, n_clusters=request.n_clusters)
         if "error" in result:
             raise HTTPException(status_code=400, detail=result["error"])
@@ -93,7 +100,7 @@ async def get_forecast(session_id: str, request: ForecastRequest):
         raise HTTPException(status_code=404, detail="Session not found")
 
     try:
-        df = _load_dataframe(session)
+        df = await _load_dataframe(session)
         result = forecast_timeseries(df, date_col=request.date_col, value_col=request.value_col, periods=request.periods)
         if "error" in result:
             raise HTTPException(status_code=400, detail=result["error"])
@@ -112,7 +119,7 @@ async def get_importance(session_id: str, request: ImportanceRequest):
         raise HTTPException(status_code=404, detail="Session not found")
 
     try:
-        df = _load_dataframe(session)
+        df = await _load_dataframe(session)
         result = compute_feature_importance(df, target_col=request.target_col)
         if "error" in result:
             raise HTTPException(status_code=400, detail=result["error"])
@@ -131,7 +138,7 @@ async def get_cleaning_suggestions(session_id: str):
         raise HTTPException(status_code=404, detail="Session not found")
 
     try:
-        df = _load_dataframe(session)
+        df = await _load_dataframe(session)
         result = suggest_cleaning(df)
         return result
     except Exception as e:
@@ -157,7 +164,7 @@ async def get_pca(session_id: str, request: PcaRequest):
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     try:
-        df = _load_dataframe(session)
+        df = await _load_dataframe(session)
         result = run_pca(df, n_components=request.n_components)
         if "error" in result:
             raise HTTPException(status_code=400, detail=result["error"])
@@ -175,7 +182,7 @@ async def get_automl(session_id: str, request: AutoMlRequest):
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     try:
-        df = _load_dataframe(session)
+        df = await _load_dataframe(session)
         result = auto_ml(df, target_col=request.target_col)
         if "error" in result:
             raise HTTPException(status_code=400, detail=result["error"])
@@ -193,7 +200,7 @@ async def get_heatmap(session_id: str):
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     try:
-        df = _load_dataframe(session)
+        df = await _load_dataframe(session)
         result = correlation_heatmap(df)
         if "error" in result:
             raise HTTPException(status_code=400, detail=result["error"])
@@ -211,7 +218,7 @@ async def local_query(session_id: str, request: LocalQueryRequest):
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     try:
-        df = _load_dataframe(session)
+        df = await _load_dataframe(session)
         result = answer_query(df, request.question)
         return result
     except Exception as e:
