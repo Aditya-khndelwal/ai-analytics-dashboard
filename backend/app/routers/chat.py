@@ -37,10 +37,17 @@ async def chat_with_data(session_id: str, request: ChatRequest):
         raise HTTPException(status_code=404, detail="Results not found")
 
     if not settings.GEMINI_API_KEY:
-        return {
-            "reply": "AI chat is unavailable — no API key configured.",
-            "chart": None
-        }
+        from app.services.local_query import answer_query
+        from app.routers.ml import _load_dataframe
+        try:
+            df = await _load_dataframe(session)
+            res = answer_query(df, request.message)
+            return {"reply": res["answer"], "chart": res.get("chart")}
+        except Exception:
+            return {
+                "reply": "No API key configured and could not parse question locally.",
+                "chart": None
+            }
 
     # Build context for Gemini
     schema_info = json.dumps(session.get('column_info', []), indent=2)
@@ -96,9 +103,16 @@ User's question: {request.message}"""
             }
         except Exception as e:
             if attempt == max_retries:
-                print(f"Chat error: {e}")
-                return {
-                    "reply": f"Sorry, I couldn't process that question. Please try rephrasing it.",
-                    "chart": None
-                }
+                print(f"Gemini chat error: {e}, falling back to local query engine")
+                from app.services.local_query import answer_query
+                from app.routers.ml import _load_dataframe
+                try:
+                    df = await _load_dataframe(session)
+                    res = answer_query(df, request.message)
+                    return {"reply": res["answer"], "chart": res.get("chart")}
+                except Exception:
+                    return {
+                        "reply": "Sorry, I couldn't process that question. Please try rephrasing it.",
+                        "chart": None
+                    }
             await asyncio.sleep(1)

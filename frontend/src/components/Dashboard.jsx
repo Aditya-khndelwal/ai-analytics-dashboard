@@ -8,6 +8,7 @@ import ExportPanel from './ExportPanel';
 import ChatPanel from './ChatPanel';
 import CustomChart from './CustomChart';
 import MLInsights from './MLInsights';
+import SmartQueryBar from './SmartQueryBar';
 import './Dashboard.css';
 import './ChatPanel.css';
 
@@ -133,6 +134,9 @@ function Dashboard({ sessionId, filename, activeTab, onTabChange }) {
           </motion.div>
         ))}
       </div>
+
+      {/* Smart Query Bar (Plain English Data Q&A) */}
+      <SmartQueryBar sessionId={sessionId} dataPreview={data_preview} />
 
       {/* Tab Navigation */}
       <div className="tab-bar">
