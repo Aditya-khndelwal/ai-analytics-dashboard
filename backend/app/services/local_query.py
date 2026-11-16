@@ -6,6 +6,7 @@ No external API calls. Replaces Gemini for chat/Q&A.
 import re
 import numpy as np
 import pandas as pd
+from app.services.ml_engine import get_clean_numeric_cols, is_id_col
 
 
 def answer_query(df: pd.DataFrame, question: str) -> dict:
@@ -15,8 +16,8 @@ def answer_query(df: pd.DataFrame, question: str) -> dict:
     """
     q = question.lower().strip()
     columns = df.columns.tolist()
-    numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-    cat_cols = df.select_dtypes(include=['object', 'category']).columns.tolist()
+    numeric_cols = get_clean_numeric_cols(df)
+    cat_cols = [c for c in df.select_dtypes(include=['object', 'category']).columns if not is_id_col(c, df[c], len(df))]
 
     # Find which column the user is asking about
     mentioned_col = _find_mentioned_column(q, columns)
@@ -26,6 +27,44 @@ def answer_query(df: pd.DataFrame, question: str) -> dict:
     # Summary / overview
     if any(kw in q for kw in ['summary', 'overview', 'describe', 'tell me about', 'what is this']):
         return _summary_answer(df)
+
+    # Group aggregation (e.g. "average by section", "score per sec", "average score by section")
+    if any(kw in q for kw in [' by ', ' per ', 'group by', 'for each']) and (numeric_cols or cat_cols):
+        target_num = mentioned_col if (mentioned_col and mentioned_col in numeric_cols) else (numeric_cols[0] if numeric_cols else None)
+        target_cat = next((c for c in cat_cols if c.lower() in q), cat_cols[0] if cat_cols else None)
+        if target_num and target_cat:
+            grp = df.groupby(target_cat)[target_num].agg(['mean', 'count']).dropna().sort_values(by='mean', ascending=False)
+            table_lines = [f"- **{cat}**: Average {target_num} = **{row['mean']:.2f}** ({int(row['count'])} records)" for cat, row in grp.head(10).iterrows()]
+            chart = _bar_chart(grp['mean'].head(10), f"Average {target_num} by {target_cat}", target_cat, f"Mean {target_num}")
+            return {
+                "answer": f"📊 **Average {target_num} by {target_cat}**:\n\n" + "\n".join(table_lines),
+                "chart": chart
+            }
+
+    # Top/Best/Worst Category (e.g. "top section", "best section", "highest section")
+    if any(kw in q for kw in ['top section', 'best section', 'highest section', 'top sec']) and cat_cols and numeric_cols:
+        target_cat = cat_cols[0]
+        target_num = numeric_cols[0]
+        grp = df.groupby(target_cat)[target_num].mean().dropna().sort_values(ascending=False)
+        top_name = grp.index[0]
+        top_val = grp.iloc[0]
+        chart = _bar_chart(grp.head(10), f"Average {target_num} by {target_cat}", target_cat, f"Mean {target_num}")
+        return {
+            "answer": f"🏆 The top performing **{target_cat}** is **{top_name}** with an average **{target_num}** of **{top_val:.2f}**.",
+            "chart": chart
+        }
+
+    # Perfect score / Specific score lookup
+    if any(kw in q for kw in ['perfect score', 'who scored', 'scored 50', 'full marks']) and numeric_cols:
+        target_num = numeric_cols[0]
+        max_v = df[target_num].max()
+        top_rows = df[df[target_num] == max_v]
+        count = len(top_rows)
+        sample_names = ", ".join([str(v) for v in top_rows['Name'].head(6).tolist()]) if 'Name' in df.columns else ""
+        return {
+            "answer": f"🎯 **{count} records** scored the maximum {target_num} of **{max_v}**.{f' Sample students: {sample_names}...' if sample_names else ''}",
+            "chart": None
+        }
 
     # Mean / average
     if any(kw in q for kw in ['mean', 'average', 'avg']):
@@ -42,14 +81,15 @@ def answer_query(df: pd.DataFrame, question: str) -> dict:
             idx = df[col].idxmax()
             row_info = df.loc[idx].to_dict()
             top_cols = {k: _safe(v) for k, v in list(row_info.items())[:5]}
-            return {"answer": f"The maximum value of **{col}** is **{_safe(val)}** (row {idx}).\n\nFull row: {top_cols}", "chart": None}
+            return {"answer": f"The maximum value of **{col}** is **{_safe(val)}** (row {idx}).\n\nFull record: {top_cols}", "chart": None}
 
     # Min / lowest / smallest
     if any(kw in q for kw in ['min', 'minimum', 'lowest', 'smallest', 'bottom']):
         col = mentioned_col or (numeric_cols[0] if numeric_cols else None)
         if col and col in numeric_cols:
             val = df[col].min()
-            return {"answer": f"The minimum value of **{col}** is **{_safe(val)}**.", "chart": None}
+            zero_count = int((df[col] == 0).sum())
+            return {"answer": f"The minimum value of **{col}** is **{_safe(val)}**.{f' ({zero_count} records scored 0)' if zero_count > 0 else ''}", "chart": None}
 
     # Count / how many
     if any(kw in q for kw in ['how many', 'count', 'total number', 'how much']):

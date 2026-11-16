@@ -60,6 +60,54 @@ def generate_chart_configs(df: pd.DataFrame, schema: List[Dict[str, Any]], analy
                 'chart_type': 'bar', **chart_json
             })
 
+    # 2b. Category Breakdown Charts (Group Averages & Category Distributions)
+    for i, cat_col in enumerate(categorical_cols[:2]):
+        for j, num_col in enumerate(numeric_cols[:2]):
+            group_stats = df.groupby(cat_col)[num_col].agg(['mean', 'count']).dropna()
+            if len(group_stats) > 1:
+                sorted_stats = group_stats.sort_values(by='mean', ascending=False).head(12)
+                fig_avg = go.Figure(data=[go.Bar(
+                    x=[str(v) for v in sorted_stats.index.tolist()],
+                    y=[round(float(v), 2) for v in sorted_stats['mean'].tolist()],
+                    text=[f"{v:.1f}" for v in sorted_stats['mean']],
+                    textposition='auto',
+                    marker_color=THEME_COLORS[(i + j) % len(THEME_COLORS)]
+                )])
+                fig_avg.update_layout(
+                    title=f'Average {num_col} by {cat_col}',
+                    xaxis_title=cat_col,
+                    yaxis_title=f'Mean {num_col}',
+                    **LAYOUT_DEFAULTS
+                )
+                chart_json = safe_json(fig_avg)
+                charts.append({
+                    'id': f'group_bar_{i}_{j}',
+                    'title': f'Average {num_col} by {cat_col}',
+                    'chart_type': 'bar',
+                    **chart_json
+                })
+
+                if len(group_stats) <= 10:
+                    valid_box = df[[cat_col, num_col]].dropna()
+                    fig_box = go.Figure(data=[go.Box(
+                        x=[str(v) for v in valid_box[cat_col].tolist()],
+                        y=valid_box[num_col].tolist(),
+                        marker_color='#C9A76A'
+                    )])
+                    fig_box.update_layout(
+                        title=f'{num_col} Distribution by {cat_col}',
+                        xaxis_title=cat_col,
+                        yaxis_title=num_col,
+                        **LAYOUT_DEFAULTS
+                    )
+                    chart_json_box = safe_json(fig_box)
+                    charts.append({
+                        'id': f'box_{i}_{j}',
+                        'title': f'{num_col} Distribution by {cat_col}',
+                        'chart_type': 'box',
+                        **chart_json_box
+                    })
+
     # 3. Correlation Heatmap
     if len(numeric_cols) >= 2:
         corr = df[numeric_cols].corr()

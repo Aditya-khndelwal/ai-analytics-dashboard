@@ -182,7 +182,7 @@ async def get_pca(session_id: str, request: PcaRequest):
     try:
         df = await _load_dataframe(session)
         result = run_pca(df, n_components=request.n_components)
-        if "error" in result:
+        if "error" in result and not result.get("is_single_metric"):
             raise HTTPException(status_code=400, detail=result["error"])
         return result
     except HTTPException:
@@ -218,7 +218,7 @@ async def get_heatmap(session_id: str):
     try:
         df = await _load_dataframe(session)
         result = correlation_heatmap(df)
-        if "error" in result:
+        if "error" in result and not result.get("is_single_metric"):
             raise HTTPException(status_code=400, detail=result["error"])
         return result
     except HTTPException:

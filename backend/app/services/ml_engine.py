@@ -1,21 +1,56 @@
 """
 ML Engine — Local machine learning features that run without any API calls.
-Implements: Anomaly Detection, Clustering, Forecasting, Feature Importance, Data Cleaning.
+Implements: Anomaly Detection, Clustering, Forecasting, Feature Importance, Data Cleaning, PCA, AutoML, Correlation Heatmap.
 """
 
+import re
 import numpy as np
 import pandas as pd
 from scipy import stats as scipy_stats
 
 
+def is_id_col(col_name: str, series: pd.Series = None, total_rows: int = 0) -> bool:
+    """Detects whether a column is an ID, Key, Roll Number, or Identifier."""
+    clean = re.sub(r'[^a-zA-Z0-9]', ' ', col_name.lower()).strip()
+    words = clean.split()
+    id_kw = {
+        'id', 'roll', 'rollno', 'serial', 'sno', 'srno', 'regno',
+        'registration', 'uuid', 'guid', 'ssn', 'pin', 'zip', 'zipcode', 'mobile', 'phone'
+    }
+    if clean in id_kw or any(w in id_kw for w in words):
+        return True
+    if any(p in clean for p in ['roll no', 'roll_no', 'sr no', 'sr_no', 's no', 's_no', 'reg no', 'reg_no', 'student id', 'emp id', 'employee id']):
+        return True
+    if clean.endswith(' id') or clean.endswith('_id') or clean.startswith('id '):
+        return True
+    if series is not None and total_rows > 0:
+        if any(clean.endswith(sfx) for sfx in [' no', '_no', ' num', '_num', ' number', '_number']):
+            if series.nunique() / max(1, total_rows) > 0.5:
+                return True
+        if pd.api.types.is_numeric_dtype(series) and total_rows > 10:
+            if series.nunique() / total_rows >= 0.90:
+                s_clean = series.dropna()
+                if len(s_clean) > 0 and (s_clean % 1 == 0).all():
+                    if s_clean.mean() > 100000 or (s_clean.max() - s_clean.min() + 1 == len(s_clean) and s_clean.min() in [0, 1]):
+                        return True
+    return False
+
+
+def get_clean_numeric_cols(df: pd.DataFrame) -> list:
+    """Returns continuous numeric columns, strictly excluding identifiers like IDs and Roll Numbers."""
+    total_rows = len(df)
+    numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+    return [c for c in numeric_cols if not is_id_col(c, df[c], total_rows)]
+
+
 def detect_anomalies(df: pd.DataFrame) -> dict:
     """
-    Detect anomalies using Z-score and IQR methods on numeric columns.
+    Detect anomalies using Z-score and IQR methods on true numeric metrics (excluding IDs).
     Returns flagged rows and per-column anomaly stats.
     """
-    numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+    numeric_cols = get_clean_numeric_cols(df)
     if not numeric_cols:
-        return {"anomalies": [], "column_stats": {}, "total_anomalous_rows": 0}
+        return {"anomalies": [], "column_stats": {}, "total_anomalous_rows": 0, "total_rows": len(df), "method": "Z-Score (|z| > 3) + IQR (1.5×IQR)"}
 
     anomaly_mask = pd.DataFrame(False, index=df.index, columns=numeric_cols)
     column_stats = {}
@@ -77,19 +112,20 @@ def detect_anomalies(df: pd.DataFrame) -> dict:
 def cluster_data(df: pd.DataFrame, columns: list = None, n_clusters: int = 3) -> dict:
     """
     K-Means clustering on selected numeric columns.
+    Supports both multi-dimensional and 1D metric clustering (e.g., Performance / Score tiers).
     Returns cluster labels, centroids, and scatter data for visualization.
     """
     from sklearn.cluster import KMeans
     from sklearn.preprocessing import StandardScaler
 
-    numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+    clean_numeric = get_clean_numeric_cols(df)
     if columns:
-        use_cols = [c for c in columns if c in numeric_cols]
+        use_cols = [c for c in columns if c in clean_numeric]
     else:
-        use_cols = numeric_cols[:5]  # Auto-pick first 5
+        use_cols = clean_numeric[:5]  # Auto-pick up to 5 metrics
 
-    if len(use_cols) < 2:
-        return {"error": "Need at least 2 numeric columns for clustering"}
+    if len(use_cols) == 0:
+        return {"error": "No continuous numeric metric columns available for clustering (ID columns excluded)"}
 
     subset = df[use_cols].dropna()
     if len(subset) < n_clusters:
@@ -111,21 +147,38 @@ def cluster_data(df: pd.DataFrame, columns: list = None, n_clusters: int = 3) ->
     cluster_summary = []
     for i in range(n_clusters):
         mask = labels == i
-        cluster_data = subset[mask]
+        cluster_rows = subset[mask]
         summary = {"cluster": i, "size": int(mask.sum())}
         for col in use_cols:
-            summary[f"{col}_mean"] = round(float(cluster_data[col].mean()), 2)
+            summary[f"{col}_mean"] = round(float(cluster_rows[col].mean()), 2)
         cluster_summary.append(summary)
 
-    # Scatter data for first 2 columns
-    x_col, y_col = use_cols[0], use_cols[1]
-    scatter_data = {
-        "x": subset[x_col].tolist()[:500],
-        "y": subset[y_col].tolist()[:500],
-        "labels": labels.tolist()[:500],
-        "x_label": x_col,
-        "y_label": y_col,
-    }
+    # Sort cluster summary by primary column mean so tiers are naturally ordered
+    primary_mean_key = f"{use_cols[0]}_mean"
+    cluster_summary.sort(key=lambda s: s.get(primary_mean_key, 0))
+    tier_labels = ["Foundational / Remedial", "Intermediate / Pass", "Advanced / Top Achievers", "Tier 4", "Tier 5"]
+    for idx, s in enumerate(cluster_summary):
+        s["tier_name"] = tier_labels[idx] if idx < len(tier_labels) else f"Tier {idx+1}"
+
+    # Scatter data
+    if len(use_cols) >= 2:
+        x_col, y_col = use_cols[0], use_cols[1]
+        scatter_data = {
+            "x": subset[x_col].tolist()[:500],
+            "y": subset[y_col].tolist()[:500],
+            "labels": labels.tolist()[:500],
+            "x_label": x_col,
+            "y_label": y_col,
+        }
+    else:
+        # 1D clustering: plot row index / rank on X, metric on Y
+        scatter_data = {
+            "x": list(range(1, len(subset) + 1))[:500],
+            "y": subset[use_cols[0]].tolist()[:500],
+            "labels": labels.tolist()[:500],
+            "x_label": "Record Index",
+            "y_label": use_cols[0],
+        }
 
     return {
         "n_clusters": n_clusters,
@@ -134,7 +187,7 @@ def cluster_data(df: pd.DataFrame, columns: list = None, n_clusters: int = 3) ->
         "scatter_data": scatter_data,
         "inertia": round(inertia, 2),
         "total_points": len(subset),
-        "method": "K-Means Clustering (StandardScaler + KMeans)",
+        "method": f"K-Means Clustering ({'1D Performance Tiers' if len(use_cols)==1 else 'Multi-Dimensional'})",
     }
 
 
@@ -170,9 +223,9 @@ def forecast_timeseries(df: pd.DataFrame, date_col: str = None, value_col: str =
 
     # Auto-detect value column
     if not value_col:
-        numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+        numeric_cols = get_clean_numeric_cols(df)
         if not numeric_cols:
-            return {"error": "No numeric column found for forecasting"}
+            return {"error": "No continuous numeric metric found for forecasting"}
         value_col = numeric_cols[0]
 
     # Prepare data
@@ -241,25 +294,57 @@ def compute_feature_importance(df: pd.DataFrame, target_col: str = None) -> dict
     """
     Compute feature importance using correlation + mutual information.
     If no target, returns inter-feature correlation ranking.
+    Supports both numeric and categorical predictors.
     """
-    from sklearn.feature_selection import mutual_info_regression, mutual_info_classif
+    from sklearn.feature_selection import mutual_info_regression
     from sklearn.preprocessing import LabelEncoder
 
-    numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+    numeric_cols = get_clean_numeric_cols(df)
 
-    # Auto-pick target: first numeric column with most variance
+    # Auto-pick target: prefer the last continuous metric column (e.g. Score, Revenue, Salary)
     if not target_col:
-        if len(numeric_cols) >= 2:
-            variances = {c: df[c].var() for c in numeric_cols}
-            target_col = max(variances, key=variances.get)
+        if numeric_cols:
+            target_col = numeric_cols[-1]
         else:
-            return {"error": "Need at least 2 numeric columns"}
+            return {"error": "No continuous numeric metric found for target"}
 
     if target_col not in df.columns:
         return {"error": f"Column '{target_col}' not found"}
 
     feature_cols = [c for c in numeric_cols if c != target_col]
+    
+    # If no other numeric columns, check categorical columns (e.g. Section, Department)
     if not feature_cols:
+        cat_candidates = [
+            c for c in df.select_dtypes(include=['object', 'category']).columns
+            if not is_id_col(c, df[c], len(df)) and 1 < df[c].nunique() <= 50
+        ]
+        if cat_candidates:
+            rankings = []
+            for col in cat_candidates:
+                clean_pair = df[[col, target_col]].dropna()
+                if len(clean_pair) > 10:
+                    try:
+                        le = LabelEncoder()
+                        cat_enc = le.fit_transform(clean_pair[col].astype(str))
+                        y_val = clean_pair[target_col].values.astype(float)
+                        mi = float(mutual_info_regression(cat_enc.reshape(-1, 1), y_val, random_state=42)[0])
+                        corr = float(clean_pair[[target_col]].assign(enc=cat_enc).corr().iloc[0, 1])
+                        rankings.append({
+                            "feature": col,
+                            "correlation": round(abs(corr), 4) if not np.isnan(corr) else 0.0,
+                            "mutual_info": round(mi, 4),
+                            "combined_score": round(mi, 4),
+                        })
+                    except Exception:
+                        pass
+            if rankings:
+                rankings.sort(key=lambda x: x["combined_score"], reverse=True)
+                return {
+                    "target_column": target_col,
+                    "rankings": rankings,
+                    "method": "Categorical Impact & Mutual Information Analysis",
+                }
         return {"error": "Need at least 1 feature column besides target"}
 
     # Correlation-based importance
@@ -381,7 +466,7 @@ def suggest_cleaning(df: pd.DataFrame) -> dict:
             })
 
     # 5. Outliers in numeric columns
-    numeric_cols = df.select_dtypes(include=[np.number]).columns
+    numeric_cols = get_clean_numeric_cols(df)
     for col in numeric_cols:
         series = df[col].dropna()
         if len(series) < 10:
@@ -402,6 +487,8 @@ def suggest_cleaning(df: pd.DataFrame) -> dict:
 
     # 6. Potential type mismatches
     for col in df.select_dtypes(include=['object']).columns:
+        if is_id_col(col, df[col], len(df)):
+            continue
         sample = df[col].dropna().head(100)
         numeric_count = sum(1 for v in sample if _is_numeric_str(str(v)))
         if numeric_count > len(sample) * 0.8 and len(sample) > 5:
@@ -454,13 +541,19 @@ def _is_numeric_str(s: str) -> bool:
 def run_pca(df: pd.DataFrame, n_components: int = 2) -> dict:
     """
     Principal Component Analysis for dimensionality reduction.
+    Requires at least 2 continuous numeric metrics (excludes identifiers).
     """
     from sklearn.decomposition import PCA
     from sklearn.preprocessing import StandardScaler
 
-    numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+    numeric_cols = get_clean_numeric_cols(df)
     if len(numeric_cols) < 2:
-        return {"error": "Need at least 2 numeric columns for PCA"}
+        return {
+            "error": f"PCA requires at least 2 continuous numeric metrics (ID columns like Roll No are excluded). Current dataset has {len(numeric_cols)} metric column: {numeric_cols if numeric_cols else 'None'}.",
+            "is_single_metric": True,
+            "single_metric": numeric_cols[0] if numeric_cols else None,
+            "method": "PCA dimensionality reduction requires 2+ features",
+        }
 
     subset = df[numeric_cols].dropna()
     if len(subset) < 5:
@@ -512,36 +605,50 @@ def auto_ml(df: pd.DataFrame, target_col: str = None) -> dict:
     """
     Auto ML — trains multiple models and compares performance.
     Auto-detects classification vs regression based on target column.
+    Supports both numeric and one-hot encoded categorical predictors.
     """
     from sklearn.model_selection import train_test_split
     from sklearn.preprocessing import StandardScaler, LabelEncoder
-    from sklearn.linear_model import LinearRegression, LogisticRegression
+    from sklearn.linear_model import LinearRegression, LogisticRegression, Ridge
     from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
     from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
     from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
     from sklearn.metrics import accuracy_score, f1_score, mean_squared_error, r2_score
 
-    numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+    numeric_cols = get_clean_numeric_cols(df)
 
     if not target_col:
         if numeric_cols:
             target_col = numeric_cols[-1]
         else:
-            return {"error": "No suitable target column found"}
+            return {"error": "No continuous numeric metric column found for AutoML"}
 
     if target_col not in df.columns:
         return {"error": f"Column '{target_col}' not found"}
 
     feature_cols = [c for c in numeric_cols if c != target_col]
+    
+    # If no other numeric columns, use low-cardinality categorical columns as features!
     if not feature_cols:
-        return {"error": "Need at least 1 numeric feature column"}
+        cat_candidates = [
+            c for c in df.select_dtypes(include=['object', 'category']).columns
+            if not is_id_col(c, df[c], len(df)) and 1 < df[c].nunique() <= 30
+        ]
+        if cat_candidates:
+            subset = df[[target_col] + cat_candidates].dropna()
+            X_df = pd.get_dummies(subset[cat_candidates], drop_first=True)
+            X = X_df.values.astype(float)
+            y = subset[target_col].values.astype(float)
+            feature_cols = X_df.columns.tolist()
+        else:
+            return {"error": "Need at least 1 feature column alongside target metric"}
+    else:
+        subset = df[feature_cols + [target_col]].dropna()
+        X = subset[feature_cols].values
+        y = subset[target_col].values
 
-    subset = df[feature_cols + [target_col]].dropna()
     if len(subset) < 20:
         return {"error": f"Not enough clean data rows ({len(subset)}), need 20+"}
-
-    X = subset[feature_cols].values
-    y = subset[target_col].values
 
     # Determine task type
     n_unique = len(np.unique(y))
@@ -585,6 +692,7 @@ def auto_ml(df: pd.DataFrame, target_col: str = None) -> dict:
         metric_name = "Accuracy"
     else:
         models = [
+            ("Ridge Regression", Ridge(alpha=1.0)),
             ("Linear Regression", LinearRegression()),
             ("Decision Tree", DecisionTreeRegressor(max_depth=10, random_state=42)),
             ("Random Forest", RandomForestRegressor(n_estimators=50, max_depth=10, random_state=42)),
@@ -623,10 +731,19 @@ def auto_ml(df: pd.DataFrame, target_col: str = None) -> dict:
 def correlation_heatmap(df: pd.DataFrame) -> dict:
     """
     Generate correlation matrix data for a heatmap visualization.
+    Requires at least 2 continuous numeric metrics.
     """
-    numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+    numeric_cols = get_clean_numeric_cols(df)
     if len(numeric_cols) < 2:
-        return {"error": "Need at least 2 numeric columns"}
+        return {
+            "error": f"Correlation heatmap requires at least 2 continuous numeric metrics (ID columns like Roll No are excluded). Dataset contains 1 metric: {numeric_cols if numeric_cols else 'None'}.",
+            "is_single_metric": True,
+            "single_metric": numeric_cols[0] if numeric_cols else None,
+            "labels": numeric_cols,
+            "matrix": [[1.0]] if numeric_cols else [],
+            "top_pairs": [],
+            "method": "Pearson Correlation Matrix",
+        }
 
     # Cap at 20 columns for readability
     use_cols = numeric_cols[:20]

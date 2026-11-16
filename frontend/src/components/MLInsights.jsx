@@ -56,7 +56,7 @@ function MLInsights({ sessionId, dataPreview }) {
             case 'automl': offlineResult = offlineAutoML(dataPreview); break;
             case 'heatmap': offlineResult = offlineHeatmap(dataPreview); break;
           }
-          if (offlineResult && !offlineResult.error) {
+          if (offlineResult && (!offlineResult.error || offlineResult.is_single_metric)) {
             setData(p => ({ ...p, [panel]: offlineResult }));
             setLoading(p => ({ ...p, [panel]: false }));
             return;
@@ -263,7 +263,10 @@ function ClusterPanel({ data, sessionId, dataPreview, onRefresh }) {
               <tbody>
                 {cluster_summary.map(cs => (
                   <tr key={cs.cluster}>
-                    <td><span className="ml-cluster-dot" style={{ background: COLORS[cs.cluster % COLORS.length] }} /> {cs.cluster}</td>
+                    <td>
+                      <span className="ml-cluster-dot" style={{ background: COLORS[cs.cluster % COLORS.length] }} />{' '}
+                      {cs.tier_name ? <strong>{cs.tier_name}</strong> : `Cluster ${cs.cluster}`}
+                    </td>
                     <td>{cs.size}</td>
                     {columns_used.map(c => <td key={c}>{cs[`${c}_mean`]}</td>)}
                   </tr>
@@ -402,6 +405,34 @@ function CleaningPanel({ data }) {
 }
 
 function PcaPanel({ data }) {
+  if (data?.is_single_metric) {
+    return (
+      <div className="ml-panel">
+        <div className="ml-panel-header">
+          <h3>PCA — Dimensionality Reduction</h3>
+          <span className="ml-method-badge">1D Metric Dataset</span>
+        </div>
+        <div style={{
+          padding: '24px',
+          background: 'rgba(201, 167, 106, 0.06)',
+          border: '1px solid rgba(201, 167, 106, 0.25)',
+          borderRadius: '12px',
+          marginTop: '16px',
+          color: '#F5F1E8'
+        }}>
+          <h4 style={{ color: '#C9A76A', margin: '0 0 8px 0', fontSize: '15px' }}>ℹ️ Single Metric Dataset Detected</h4>
+          <p style={{ margin: '0 0 12px 0', color: '#9C9892', fontSize: '13px', lineHeight: '1.6' }}>
+            PCA mathematically requires at least <strong>2 continuous numeric metrics</strong> to project high-dimensional data into orthogonal components.
+            Identifier columns (such as student Roll Numbers or IDs) are automatically excluded to preserve statistical validity.
+          </p>
+          <div style={{ fontSize: '12px', color: '#C9A76A' }}>
+            💡 <strong>Recommended:</strong> Explore the <strong>Clustering</strong> panel for 1D Performance Tiers, or check the <strong>Category Breakdown</strong> charts on the Overview page!
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const { components, scatter_data, total_explained_variance, n_features, method } = data;
   return (
     <div className="ml-panel">
@@ -412,21 +443,21 @@ function PcaPanel({ data }) {
       <div className="ml-stat-row">
         <div className="ml-stat-card accent">{total_explained_variance}%<span>Variance Explained</span></div>
         <div className="ml-stat-card">{n_features}<span>Original Features</span></div>
-        <div className="ml-stat-card">{components.length}<span>Components</span></div>
+        <div className="ml-stat-card">{components?.length || 0}<span>Components</span></div>
       </div>
       {scatter_data && (
         <div className="ml-chart-box">
           <Plot data={[{ x: scatter_data.x, y: scatter_data.y, type: 'scatter', mode: 'markers', marker: { color: '#C9A76A', size: 4, opacity: 0.6 } }]}
             layout={{ paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', font: { family: 'Inter', color: '#9C9892' },
-              xaxis: { title: `PC1 (${components[0]?.explained_variance}%)`, gridcolor: '#2A2A30', zerolinecolor: '#2A2A30' },
-              yaxis: { title: `PC2 (${components[1]?.explained_variance || 0}%)`, gridcolor: '#2A2A30', zerolinecolor: '#2A2A30' },
+              xaxis: { title: `PC1 (${components?.[0]?.explained_variance || 0}%)`, gridcolor: '#2A2A30', zerolinecolor: '#2A2A30' },
+              yaxis: { title: `PC2 (${components?.[1]?.explained_variance || 0}%)`, gridcolor: '#2A2A30', zerolinecolor: '#2A2A30' },
               margin: { t: 10, r: 20, b: 50, l: 60 } }}
             config={{ responsive: true, displayModeBar: false }} style={{ width: '100%', height: '360px' }} useResizeHandler />
         </div>
       )}
       <div className="ml-section">
         <h4>Component Loadings</h4>
-        {components.map(c => (
+        {components?.map(c => (
           <div key={c.component} style={{ marginBottom: 12 }}>
             <p className="ml-subtitle"><strong>PC{c.component}</strong> — {c.explained_variance}% variance</p>
             <div className="ml-table-wrap">
@@ -495,6 +526,34 @@ function AutoMlPanel({ data }) {
 }
 
 function HeatmapPanel({ data }) {
+  if (data?.is_single_metric) {
+    return (
+      <div className="ml-panel">
+        <div className="ml-panel-header">
+          <h3>Correlation Heatmap</h3>
+          <span className="ml-method-badge">Single Metric</span>
+        </div>
+        <div style={{
+          padding: '24px',
+          background: 'rgba(201, 167, 106, 0.06)',
+          border: '1px solid rgba(201, 167, 106, 0.25)',
+          borderRadius: '12px',
+          marginTop: '16px',
+          color: '#F5F1E8'
+        }}>
+          <h4 style={{ color: '#C9A76A', margin: '0 0 8px 0', fontSize: '15px' }}>ℹ️ Single Metric Dataset Detected</h4>
+          <p style={{ margin: '0 0 12px 0', color: '#9C9892', fontSize: '13px', lineHeight: '1.6' }}>
+            A correlation matrix requires at least <strong>2 numeric continuous metrics</strong> to compute pairwise Pearson coefficients.
+            Identifier columns (such as student Roll Numbers or IDs) are automatically excluded to avoid spurious correlations.
+          </p>
+          <div style={{ fontSize: '12px', color: '#C9A76A' }}>
+            💡 <strong>Recommended:</strong> Check the <strong>Feature Importance</strong> panel to see how sections and categories impact the score!
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const { labels, matrix, top_pairs, method } = data;
   return (
     <div className="ml-panel">

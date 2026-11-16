@@ -1,3 +1,5 @@
+import { isIdColumn } from './offlineML';
+
 /**
  * Client-Side Smart Natural Language Query Engine.
  * Answers data questions directly in the browser using dataPreview rows and columns.
@@ -13,11 +15,13 @@ export function queryClientData(dataPreview, question) {
   const rows = dataPreview.rows;
   const cols = dataPreview.columns || [];
 
-  // Identify numeric & categorical columns
+  // Identify numeric & categorical columns (strictly excluding IDs like Roll No)
   const numericCols = [];
   const catCols = [];
 
   for (const c of cols) {
+    if (isIdColumn(c, rows)) continue;
+
     let numCount = 0;
     let nonNull = 0;
     for (let i = 0; i < Math.min(50, rows.length); i++) {
@@ -42,17 +46,40 @@ export function queryClientData(dataPreview, question) {
     const lines = [
       `📊 **Dataset Overview**`,
       `- **Total Records**: ${rows.length.toLocaleString()}`,
-      `- **Columns**: ${cols.length} (${numericCols.length} numeric, ${catCols.length} categorical)`,
-      `- **Numeric features**: ${numericCols.slice(0, 5).join(', ')}${numericCols.length > 5 ? '...' : ''}`,
+      `- **Columns**: ${cols.length} (${numericCols.length} metric features, ${catCols.length} categories, IDs detected)`,
+      `- **Metric features**: ${numericCols.slice(0, 5).join(', ')}${numericCols.length > 5 ? '...' : ''}`,
       `- **Categorical features**: ${catCols.slice(0, 5).join(', ')}${catCols.length > 5 ? '...' : ''}`,
     ];
     return { answer: lines.join('\n'), chart: null };
   }
 
+  // 1b. Top / Best Section or Category
+  if (['top section', 'best section', 'highest section', 'top sec'].some(k => q.includes(k)) && catCols.length > 0 && numericCols.length > 0) {
+    const targetCat = catCols[0];
+    const targetNum = numericCols[0];
+    return groupAverage(rows, targetCat, targetNum);
+  }
+
+  // 1c. Perfect score / Who scored 50
+  if (['who scored', 'perfect score', 'scored 50', 'full marks'].some(k => q.includes(k)) && numericCols.length > 0) {
+    const col = numericCols[0];
+    let maxVal = -Infinity;
+    rows.forEach(r => {
+      const v = Number(r[col]);
+      if (!isNaN(v) && v > maxVal) maxVal = v;
+    });
+    const topRows = rows.filter(r => Number(r[col]) === maxVal);
+    const names = topRows.map(r => r.Name || r.name).filter(Boolean).slice(0, 8).join(', ');
+    return {
+      answer: `🎯 **${topRows.length} records** achieved the maximum **${col}** of **${maxVal}**.${names ? ` Sample: ${names}...` : ''}`,
+      chart: null,
+    };
+  }
+
   // 2. Average / Mean
   if (['average', 'avg', 'mean'].some(k => q.includes(k))) {
     // Check if user asked "average X by Y" or "average X per Y"
-    if (catCols.length > 0 && numericCols.length > 0 && (q.includes(' by ') || q.includes(' per '))) {
+    if (catCols.length > 0 && numericCols.length > 0 && (q.includes(' by ') || q.includes(' per ') || q.includes('section') || q.includes('sec'))) {
       const targetCat = catCols.find(c => q.includes(c.toLowerCase())) || catCols[0];
       const targetNum = numericCols.find(c => q.includes(c.toLowerCase())) || numericCols[0];
       return groupAverage(rows, targetCat, targetNum);

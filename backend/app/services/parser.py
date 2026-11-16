@@ -1,7 +1,53 @@
+import re
 import pandas as pd
 import numpy as np
 from pandas.errors import ParserError
 from typing import Dict, Any
+
+def is_id_column(col_name: str, series: pd.Series, total_rows: int) -> bool:
+    """
+    Detects if a column is an ID, Key, Roll Number, or Identifier.
+    Excludes it from being treated as continuous numeric features.
+    """
+    clean_name = re.sub(r'[^a-zA-Z0-9]', ' ', col_name.lower()).strip()
+    words = clean_name.split()
+
+    # Exact keywords or word in column name
+    id_keywords = {
+        'id', 'roll', 'rollno', 'serial', 'sno', 'srno', 'regno',
+        'registration', 'uuid', 'guid', 'ssn', 'pin', 'zip', 'zipcode', 'mobile', 'phone'
+    }
+    if clean_name in id_keywords or any(w in id_keywords for w in words):
+        return True
+
+    # Multi-word patterns
+    if any(p in clean_name for p in ['roll no', 'roll_no', 'sr no', 'sr_no', 's no', 's_no', 'reg no', 'reg_no', 'student id', 'emp id', 'employee id']):
+        return True
+
+    # Suffix checks (e.g. employee_id, order_id, user_no)
+    if clean_name.endswith(' id') or clean_name.endswith('_id') or clean_name.startswith('id '):
+        return True
+
+    if any(clean_name.endswith(sfx) for sfx in [' no', '_no', ' num', '_num', ' number', '_number']):
+        # If unique ratio is substantial, it's an ID
+        if series.nunique() / max(1, total_rows) > 0.5:
+            return True
+
+    # Data-driven check for numeric columns
+    if pd.api.types.is_numeric_dtype(series) and total_rows > 10:
+        unique_ratio = series.nunique() / total_rows
+        # If nearly all values are unique
+        if unique_ratio >= 0.90:
+            clean_s = series.dropna()
+            if len(clean_s) > 0 and (clean_s % 1 == 0).all():
+                # Large numbers (e.g. 10/11 digit student roll numbers, timestamps, IDs)
+                if clean_s.mean() > 100000:
+                    return True
+                # Or strictly sequential row indices (1, 2, 3...)
+                if clean_s.max() - clean_s.min() + 1 == len(clean_s) and clean_s.min() in [0, 1]:
+                    return True
+
+    return False
 
 def parse_file(filepath: str) -> Dict[str, Any]:
     """
@@ -37,7 +83,9 @@ def parse_file(filepath: str) -> Dict[str, Any]:
 
         # Infer Type
         inferred_type = 'text'
-        if pd.api.types.is_numeric_dtype(df[col]):
+        if is_id_column(col, df[col], row_count):
+            inferred_type = 'id'
+        elif pd.api.types.is_numeric_dtype(df[col]):
             inferred_type = 'numeric'
         elif pd.api.types.is_datetime64_any_dtype(df[col]):
             inferred_type = 'datetime'
