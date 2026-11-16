@@ -170,7 +170,7 @@ function Dashboard({ sessionId, filename, activeTab, onTabChange }) {
             )}
             {activeTab === 'charts' && <ChartGrid charts={charts || []} dataPreview={data_preview} />}
             {activeTab === 'custom' && <CustomChart data={data_preview} session={session} />}
-            {activeTab === 'ml' && <MLInsights sessionId={sessionId} />}
+            {activeTab === 'ml' && <MLInsights sessionId={sessionId} dataPreview={data_preview} />}
             {activeTab === 'data' && <DataPreview data={data_preview} session={session} />}
             {activeTab === 'export' && <ExportPanel sessionId={sessionId} filename={filename} />}
           </motion.div>

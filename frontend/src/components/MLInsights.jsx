@@ -3,12 +3,22 @@ import createPlotlyComponent from 'react-plotly.js/factory';
 import Plotly from 'plotly.js-dist-min';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getAnomalies, getClusters, getForecast, getImportance, getCleaning, getPca, getAutoMl, getHeatmap } from '../api/client';
+import {
+  offlineAnomalies,
+  offlineClusters,
+  offlineForecast,
+  offlineImportance,
+  offlineCleaning,
+  offlinePca,
+  offlineAutoML,
+  offlineHeatmap,
+} from '../utils/offlineML';
 import './MLInsights.css';
 
 const Plot = createPlotlyComponent(Plotly);
 const COLORS = ['#C9A76A', '#5FA98A', '#7C93B8', '#B0637E', '#9C9892', '#D4A574', '#6B8E7B'];
 
-function MLInsights({ sessionId }) {
+function MLInsights({ sessionId, dataPreview }) {
   const [activePanel, setActivePanel] = useState('anomalies');
   const [data, setData] = useState({});
   const [loading, setLoading] = useState({});
@@ -32,6 +42,33 @@ function MLInsights({ sessionId }) {
       }
       setData(p => ({ ...p, [panel]: result }));
     } catch (e) {
+      // Backend failed or server is offline — run client-side offline ML engine!
+      if (dataPreview && dataPreview.rows && dataPreview.rows.length > 0) {
+        try {
+          let offlineResult;
+          switch (panel) {
+            case 'anomalies': offlineResult = offlineAnomalies(dataPreview); break;
+            case 'clusters': offlineResult = offlineClusters(dataPreview); break;
+            case 'forecast': offlineResult = offlineForecast(dataPreview); break;
+            case 'importance': offlineResult = offlineImportance(dataPreview); break;
+            case 'cleaning': offlineResult = offlineCleaning(dataPreview); break;
+            case 'pca': offlineResult = offlinePca(dataPreview); break;
+            case 'automl': offlineResult = offlineAutoML(dataPreview); break;
+            case 'heatmap': offlineResult = offlineHeatmap(dataPreview); break;
+          }
+          if (offlineResult && !offlineResult.error) {
+            setData(p => ({ ...p, [panel]: offlineResult }));
+            setLoading(p => ({ ...p, [panel]: false }));
+            return;
+          } else if (offlineResult && offlineResult.error) {
+            setErrors(p => ({ ...p, [panel]: offlineResult.error }));
+            setLoading(p => ({ ...p, [panel]: false }));
+            return;
+          }
+        } catch (offlineErr) {
+          console.warn('Offline ML engine fallback error:', offlineErr);
+        }
+      }
       setErrors(p => ({ ...p, [panel]: e.message }));
     }
     setLoading(p => ({ ...p, [panel]: false }));
@@ -75,7 +112,7 @@ function MLInsights({ sessionId }) {
           <AnimatePresence mode="wait">
             <motion.div key={activePanel} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
               {activePanel === 'anomalies' && <AnomalyPanel data={data.anomalies} />}
-              {activePanel === 'clusters' && <ClusterPanel data={data.clusters} sessionId={sessionId} onRefresh={(d) => setData(p => ({...p, clusters: d}))} />}
+              {activePanel === 'clusters' && <ClusterPanel data={data.clusters} sessionId={sessionId} dataPreview={dataPreview} onRefresh={(d) => setData(p => ({...p, clusters: d}))} />}
               {activePanel === 'forecast' && <ForecastPanel data={data.forecast} />}
               {activePanel === 'importance' && <ImportancePanel data={data.importance} />}
               {activePanel === 'pca' && <PcaPanel data={data.pca} />}
@@ -151,7 +188,7 @@ function AnomalyPanel({ data }) {
   );
 }
 
-function ClusterPanel({ data, sessionId, onRefresh }) {
+function ClusterPanel({ data, sessionId, dataPreview, onRefresh }) {
   const [nClusters, setNClusters] = useState(data.n_clusters || 3);
   const [reloading, setReloading] = useState(false);
   const { scatter_data, cluster_summary, method, columns_used, inertia } = data;
@@ -161,7 +198,12 @@ function ClusterPanel({ data, sessionId, onRefresh }) {
     try {
       const result = await getClusters(sessionId, null, nClusters);
       onRefresh(result);
-    } catch {}
+    } catch {
+      if (dataPreview) {
+        const off = offlineClusters(dataPreview, null, nClusters);
+        if (!off.error) onRefresh(off);
+      }
+    }
     setReloading(false);
   };
 

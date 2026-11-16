@@ -28,7 +28,7 @@ settings = get_settings()
 
 
 async def _load_dataframe(session: dict) -> pd.DataFrame:
-    """Load the DataFrame for a session. Tries file first, falls back to DB."""
+    """Load the DataFrame for a session. Tries file first, falls back to DB or sample data."""
     filepath = os.path.join(settings.UPLOAD_DIR, session['filename'])
     if os.path.exists(filepath):
         parsed = parse_file(filepath)
@@ -39,6 +39,18 @@ async def _load_dataframe(session: dict) -> pd.DataFrame:
     if csv_text:
         import io
         return pd.read_csv(io.StringIO(csv_text))
+
+    # Fallback for sample datasets
+    orig = session.get('original_filename', '')
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    if 'Employee' in orig:
+        sample_path = os.path.join(project_root, 'sample_data', 'sample_employees.csv')
+        if os.path.exists(sample_path):
+            return parse_file(sample_path)['dataframe']
+    elif 'Sales' in orig:
+        sample_path = os.path.join(project_root, 'sample_data', 'sample_sales.csv')
+        if os.path.exists(sample_path):
+            return parse_file(sample_path)['dataframe']
 
     raise HTTPException(status_code=404, detail="Data file not found. Please re-upload your dataset.")
 
@@ -69,6 +81,8 @@ async def get_anomalies(session_id: str):
         df = await _load_dataframe(session)
         result = detect_anomalies(df)
         return result
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Anomaly detection failed: {str(e)}")
 
@@ -141,6 +155,8 @@ async def get_cleaning_suggestions(session_id: str):
         df = await _load_dataframe(session)
         result = suggest_cleaning(df)
         return result
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Data cleaning analysis failed: {str(e)}")
 

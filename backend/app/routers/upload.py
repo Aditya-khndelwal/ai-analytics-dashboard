@@ -56,13 +56,14 @@ async def upload_file(file: UploadFile = File(...)):
             column_info=schema
         )
 
+
         # Persist CSV in DB so it survives server restarts
         try:
             df = parsed_data['dataframe']
             await save_csv_data(session_id, df.to_csv(index=False))
         except Exception:
-            pass  # Non-critical — file on disk is primary
-        
+            pass
+
         return {
             "session_id": session_id,
             "filename": file.filename,
@@ -126,6 +127,13 @@ async def upload_sample(dataset_name: str):
             col_count=col_count,
             column_info=schema,
         )
+
+        # Persist CSV in DB so it survives server restarts
+        try:
+            df = parsed_data['dataframe']
+            await save_csv_data(session_id, df.to_csv(index=False))
+        except Exception:
+            pass
 
         return {
             "session_id": session_id,
@@ -204,6 +212,13 @@ async def upload_from_url(request: UrlUploadRequest):
             col_count=col_count,
             column_info=schema,
         )
+
+        # Persist CSV in DB so it survives server restarts
+        try:
+            df = parsed_data['dataframe']
+            await save_csv_data(session_id, df.to_csv(index=False))
+        except Exception:
+            pass
 
         return {
             "session_id": session_id,
