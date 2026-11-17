@@ -19,7 +19,10 @@ class Settings(BaseSettings):
 @lru_cache()
 def get_settings() -> Settings:
     """Returns a cached instance of the settings."""
-    # Ensure upload directory exists
     settings = Settings()
+    if not os.path.isabs(settings.DB_PATH):
+        settings.DB_PATH = os.path.join(BASE_DIR, settings.DB_PATH)
+    if not os.path.isabs(settings.UPLOAD_DIR):
+        settings.UPLOAD_DIR = os.path.join(BASE_DIR, settings.UPLOAD_DIR)
     os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
     return settings
