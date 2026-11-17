@@ -81,7 +81,7 @@ User's question: {request.message}"""
     for attempt in range(max_retries + 1):
         try:
             response = await client.aio.models.generate_content(
-                model='gemini-3.6-flash',
+                model='gemini-2.0-flash',
                 contents=prompt,
                 config=genai.types.GenerateContentConfig(
                     response_mime_type="application/json",
