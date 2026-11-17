@@ -14,14 +14,13 @@ function App() {
   const [filename, setFilename] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
   const [shareToken, setShareToken] = useState(null);
-  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark');
   const [cmdOpen, setCmdOpen] = useState(false);
 
-  // Apply theme to document
+  // Enforce permanent dark theme
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('theme', theme);
-  }, [theme]);
+    document.documentElement.setAttribute('data-theme', 'dark');
+    localStorage.setItem('theme', 'dark');
+  }, []);
 
   // Check URL for shared routes on mount
   useEffect(() => {
@@ -68,10 +67,6 @@ function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
-  const toggleTheme = () => {
-    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
-  };
-
   const handleNewAnalysis = () => {
     setAppState('landing');
     setSessionId(null);
@@ -99,7 +94,6 @@ function App() {
       case 'new': handleNewAnalysis(); break;
       case 'home': handleNewAnalysis(); break;
       case 'tab': setActiveTab(args[0]); break;
-      case 'theme': toggleTheme(); break;
       case 'load':
         setSessionId(args[0]);
         setFilename(args[1] || 'Dataset');
@@ -187,24 +181,6 @@ function App() {
 
         {/* Bottom actions */}
         <div className="sidebar-bottom">
-          {/* Theme toggle */}
-          <motion.button
-            whileTap={{ scale: 0.95 }}
-            onClick={toggleTheme}
-            className="sidebar-nav-item"
-            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-          >
-            {theme === 'dark' ? (
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{width: '20px', height: '20px'}}>
-                <circle cx="12" cy="12" r="5" /><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
-              </svg>
-            ) : (
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{width: '20px', height: '20px'}}>
-                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-              </svg>
-            )}
-          </motion.button>
-
           {appState === 'dashboard' && (
             <motion.button whileTap={{ scale: 0.95 }} onClick={handleNewAnalysis} className="sidebar-nav-item" title="New Analysis (N)">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{width: '20px', height: '20px'}}>

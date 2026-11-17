@@ -28,7 +28,6 @@ const CommandPalette = ({ isOpen, onClose, onAction, appState }) => {
     { id: 'export', label: 'Go to Export', desc: 'Download reports', icon: '📥', action: () => onAction('tab', 'export'), show: appState === 'dashboard' },
     { id: 'chat', label: 'Ask AI', desc: 'Chat with your data', icon: '🤖', action: () => onAction('chat'), show: appState === 'dashboard' },
     { id: 'share', label: 'Share Dashboard', desc: 'Generate a shareable link', icon: '🔗', action: () => onAction('share'), show: appState === 'dashboard' },
-    { id: 'theme', label: 'Toggle Theme', desc: 'Switch dark/light mode', icon: '🌗', action: () => onAction('theme') },
     { id: 'home', label: 'Go to Landing Page', desc: 'Return to home', icon: '🏠', action: () => onAction('home') },
   ];
 

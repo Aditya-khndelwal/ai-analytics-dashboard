@@ -19,7 +19,14 @@ from reportlab.lib import colors
 from docx import Document
 from docx.shared import Inches
 
-THEME_COLORS = ['#C9A76A', '#5FA98A', '#7C93B8', '#B0637E', '#9C9892', '#D4A574', '#6B8E7B']
+# Premium Dark Obsidian & Champagne Palette
+THEME_COLORS = ['#C9A76A', '#5FA98A', '#7C93B8', '#D4A574', '#B0637E', '#6B8E7B', '#E5C992']
+DARK_CANVAS_BG = '#16161A'
+DARK_PLOT_BG = '#0E0E12'
+DARK_GRID = '#2E2E38'
+DARK_TEXT_PRIMARY = '#F5F1E8'
+DARK_TEXT_SECONDARY = '#9C9892'
+DARK_ACCENT = '#C9A76A'
 
 
 def _safe_float(val: Any) -> Optional[float]:
@@ -37,7 +44,8 @@ def _safe_float(val: Any) -> Optional[float]:
 
 def create_chart_image(chart_config: Dict[str, Any]) -> Optional[io.BytesIO]:
     """
-    Renders a chart configuration dict to a crisp PNG image byte stream.
+    Renders a chart configuration dict to a crisp PNG image byte stream in
+    the luxury Obsidian & Champagne dark theme.
     Uses pure-Python headless Matplotlib for 100% reliable rendering without
     requiring headless Chromium, Kaleido, or system GUI libraries.
     """
@@ -63,25 +71,28 @@ def create_chart_image(chart_config: Dict[str, Any]) -> Optional[io.BytesIO]:
     fig = None
     try:
         fig, ax = plt.subplots(figsize=(6.5, 3.8), dpi=140)
-        fig.patch.set_facecolor('white')
-        ax.set_facecolor('#FAFAFA')
-        ax.grid(True, linestyle='--', alpha=0.35, color='#D0D0D0')
+        fig.patch.set_facecolor(DARK_CANVAS_BG)
+        ax.set_facecolor(DARK_PLOT_BG)
+        ax.grid(True, linestyle='--', alpha=0.25, color=DARK_GRID)
         ax.set_axisbelow(True)
+        ax.tick_params(colors=DARK_TEXT_SECONDARY, labelsize=8)
+        for spine in ax.spines.values():
+            spine.set_color('#2A2A32')
 
         if chart_type == 'histogram' or trace.get('type') == 'histogram':
             x_raw = trace.get('x', [])
             numeric_vals = [f for v in x_raw if (f := _safe_float(v)) is not None]
             if numeric_vals:
                 bins = min(25, max(5, int(np.sqrt(len(numeric_vals)))))
-                ax.hist(numeric_vals, bins=bins, color='#C9A76A', edgecolor='#FFFFFF', alpha=0.9)
-                ax.set_ylabel('Count', fontsize=9, color='#444444')
+                ax.hist(numeric_vals, bins=bins, color=DARK_ACCENT, edgecolor='#16161A', alpha=0.9)
+                ax.set_ylabel('Count', fontsize=9, color=DARK_TEXT_SECONDARY)
             else:
                 ax.text(0.5, 0.5, 'Distribution Data (Non-numeric)', ha='center', va='center',
-                        transform=ax.transAxes, color='#777777', fontsize=10)
+                        transform=ax.transAxes, color=DARK_TEXT_SECONDARY, fontsize=10)
             x_title = layout.get('xaxis', {}).get('title', '')
             if isinstance(x_title, dict):
                 x_title = x_title.get('text', '')
-            ax.set_xlabel(str(x_title), fontsize=9, color='#444444')
+            ax.set_xlabel(str(x_title), fontsize=9, color=DARK_ACCENT)
 
         elif chart_type == 'bar' or trace.get('type') == 'bar':
             x_raw = trace.get('x', [])
@@ -95,7 +106,7 @@ def create_chart_image(chart_config: Dict[str, Any]) -> Optional[io.BytesIO]:
                 y_vals = y_vals[:15]
                 
             colors_list = [THEME_COLORS[i % len(THEME_COLORS)] for i in range(len(x_vals))]
-            bars = ax.bar(x_vals, y_vals, color=colors_list, edgecolor='#FFFFFF', alpha=0.9, width=0.6)
+            bars = ax.bar(x_vals, y_vals, color=colors_list, edgecolor='#16161A', alpha=0.9, width=0.6)
             
             if len(x_vals) <= 12 and len(x_vals) > 0:
                 for bar in bars:
@@ -104,7 +115,7 @@ def create_chart_image(chart_config: Dict[str, Any]) -> Optional[io.BytesIO]:
                     ax.annotate(label_txt,
                                 xy=(bar.get_x() + bar.get_width() / 2, height),
                                 xytext=(0, 3), textcoords="offset points",
-                                ha='center', va='bottom', fontsize=8, color='#333333')
+                                ha='center', va='bottom', fontsize=8, color=DARK_TEXT_PRIMARY)
                                 
             if len(x_vals) > 4 or any(len(x) > 6 for x in x_vals):
                 plt.setp(ax.get_xticklabels(), rotation=25, ha='right', fontsize=8)
@@ -112,7 +123,7 @@ def create_chart_image(chart_config: Dict[str, Any]) -> Optional[io.BytesIO]:
             y_title = layout.get('yaxis', {}).get('title', 'Value')
             if isinstance(y_title, dict):
                 y_title = y_title.get('text', 'Value')
-            ax.set_ylabel(str(y_title), fontsize=9, color='#444444')
+            ax.set_ylabel(str(y_title), fontsize=9, color=DARK_ACCENT)
 
         elif chart_type == 'heatmap' or trace.get('type') == 'heatmap':
             z_vals = trace.get('z', [])
@@ -127,27 +138,27 @@ def create_chart_image(chart_config: Dict[str, Any]) -> Optional[io.BytesIO]:
             
             if z_clean:
                 z_array = np.array(z_clean, dtype=float)
-                im = ax.imshow(z_array, cmap='RdBu_r', vmin=-1, vmax=1, aspect='auto')
+                im = ax.imshow(z_array, cmap='magma', vmin=-1, vmax=1, aspect='auto')
                 ax.set_xticks(range(len(x_labels)))
                 ax.set_yticks(range(len(y_labels)))
-                ax.set_xticklabels(x_labels, rotation=35, ha='right', fontsize=8)
-                ax.set_yticklabels(y_labels, fontsize=8)
-                plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+                ax.set_xticklabels(x_labels, rotation=35, ha='right', fontsize=8, color=DARK_TEXT_SECONDARY)
+                ax.set_yticklabels(y_labels, fontsize=8, color=DARK_TEXT_SECONDARY)
+                cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+                cbar.ax.tick_params(colors=DARK_TEXT_SECONDARY)
                 
                 if len(x_labels) <= 8 and len(y_labels) <= 8:
                     for i in range(len(y_labels)):
                         for j in range(len(x_labels)):
                             if i < z_array.shape[0] and j < z_array.shape[1]:
                                 val = z_array[i, j]
-                                c = 'white' if abs(val) > 0.6 else 'black'
+                                c = 'white' if abs(val) > 0.4 else '#C9A76A'
                                 ax.text(j, i, f'{val:.2f}', ha='center', va='center', fontsize=7, color=c)
             else:
                 ax.text(0.5, 0.5, 'Correlation Matrix Unavailable', ha='center', va='center',
-                        transform=ax.transAxes, color='#777777')
+                        transform=ax.transAxes, color=DARK_TEXT_SECONDARY)
 
         elif chart_type in ['scatter', 'line'] or trace.get('type') in ['scatter', 'line']:
             mode = trace.get('mode', 'markers')
-            # Check if there are multiple traces (e.g. multi-line or grouped scatter)
             for idx_tr, tr in enumerate(data_list[:4]):
                 x_raw = tr.get('x', [])
                 y_raw = tr.get('y', [])
@@ -169,11 +180,13 @@ def create_chart_image(chart_config: Dict[str, Any]) -> Optional[io.BytesIO]:
                             pts_x.append(fx)
                             pts_y.append(fy)
                     if pts_x:
-                        ax.scatter(pts_x, pts_y, color=tr_color, alpha=0.75,
-                                   edgecolors='#7A6237', s=40, label=tr_name if len(data_list) > 1 else None)
+                        ax.scatter(pts_x, pts_y, color=tr_color, alpha=0.85,
+                                   edgecolors='#16161A', s=45, label=tr_name if len(data_list) > 1 else None)
             
             if len(data_list) > 1:
-                ax.legend(fontsize=8, loc='upper right')
+                leg = ax.legend(fontsize=8, loc='upper right', facecolor=DARK_CANVAS_BG, edgecolor='#2A2A32')
+                for text in leg.get_texts():
+                    text.set_color(DARK_TEXT_PRIMARY)
 
             x_title = layout.get('xaxis', {}).get('title', '')
             if isinstance(x_title, dict):
@@ -181,8 +194,8 @@ def create_chart_image(chart_config: Dict[str, Any]) -> Optional[io.BytesIO]:
             y_title = layout.get('yaxis', {}).get('title', '')
             if isinstance(y_title, dict):
                 y_title = y_title.get('text', '')
-            ax.set_xlabel(str(x_title), fontsize=9, color='#444444')
-            ax.set_ylabel(str(y_title), fontsize=9, color='#444444')
+            ax.set_xlabel(str(x_title), fontsize=9, color=DARK_ACCENT)
+            ax.set_ylabel(str(y_title), fontsize=9, color=DARK_ACCENT)
 
         elif chart_type == 'pie' or trace.get('type') == 'pie':
             labels = [str(v) if v is not None else '' for v in trace.get('labels', [])][:7]
@@ -190,12 +203,18 @@ def create_chart_image(chart_config: Dict[str, Any]) -> Optional[io.BytesIO]:
             values = [max(0.0, _safe_float(v) or 0.0) for v in values_raw]
             
             if sum(values) > 0 and len(labels) == len(values):
-                ax.pie(values, labels=labels, autopct='%1.1f%%', colors=THEME_COLORS[:len(labels)],
-                       startangle=140, textprops={'fontsize': 8})
+                wedges, texts, autotexts = ax.pie(
+                    values, labels=labels, autopct='%1.1f%%', colors=THEME_COLORS[:len(labels)],
+                    startangle=140, textprops={'fontsize': 8, 'color': DARK_TEXT_PRIMARY},
+                    wedgeprops={'edgecolor': DARK_CANVAS_BG, 'linewidth': 1.5}
+                )
+                for at in autotexts:
+                    at.set_color('#16161A')
+                    at.set_weight('bold')
                 ax.axis('equal')
             else:
                 ax.text(0.5, 0.5, 'Composition Data Unavailable', ha='center', va='center',
-                        transform=ax.transAxes, color='#777777')
+                        transform=ax.transAxes, color=DARK_TEXT_SECONDARY)
 
         elif chart_type == 'box' or trace.get('type') == 'box':
             x_raw = trace.get('x', [])
@@ -209,31 +228,32 @@ def create_chart_image(chart_config: Dict[str, Any]) -> Optional[io.BytesIO]:
                     box_data.append(vals)
                     valid_cats.append(c)
             if box_data:
-                ax.boxplot(box_data, tick_labels=valid_cats, patch_artist=True,
-                           boxprops=dict(facecolor='#C9A76A', color='#7A6237', alpha=0.8),
-                           medianprops=dict(color='#16161A', linewidth=2))
-                plt.setp(ax.get_xticklabels(), rotation=25, ha='right', fontsize=8)
+                bp = ax.boxplot(box_data, tick_labels=valid_cats, patch_artist=True,
+                                boxprops=dict(facecolor=DARK_ACCENT, color='#8A7448', alpha=0.85),
+                                medianprops=dict(color=DARK_TEXT_PRIMARY, linewidth=2),
+                                whiskerprops=dict(color=DARK_TEXT_SECONDARY),
+                                capprops=dict(color=DARK_TEXT_SECONDARY))
+                plt.setp(ax.get_xticklabels(), rotation=25, ha='right', fontsize=8, color=DARK_TEXT_SECONDARY)
             y_title = layout.get('yaxis', {}).get('title', '')
             if isinstance(y_title, dict):
                 y_title = y_title.get('text', '')
-            ax.set_ylabel(str(y_title), fontsize=9, color='#444444')
+            ax.set_ylabel(str(y_title), fontsize=9, color=DARK_ACCENT)
 
         else:
-            # Fallback for generic or custom chart types
             x_raw = trace.get('x', [])
             y_raw = trace.get('y', [])
             x_str = [str(v) for v in x_raw[:12]]
             y_flt = [_safe_float(v) or 0.0 for v in y_raw[:12]]
             if x_str and y_flt:
-                ax.bar(x_str, y_flt, color='#C9A76A', alpha=0.85, width=0.6)
+                ax.bar(x_str, y_flt, color=DARK_ACCENT, alpha=0.85, width=0.6, edgecolor=DARK_CANVAS_BG)
                 if len(x_str) > 4:
-                    plt.setp(ax.get_xticklabels(), rotation=25, ha='right', fontsize=8)
+                    plt.setp(ax.get_xticklabels(), rotation=25, ha='right', fontsize=8, color=DARK_TEXT_SECONDARY)
 
-        ax.set_title(title, fontsize=11, fontweight='bold', pad=10, color='#1A1A1A')
+        ax.set_title(title, fontsize=11, fontweight='bold', pad=10, color=DARK_TEXT_PRIMARY)
         plt.tight_layout()
 
         buf = io.BytesIO()
-        fig.savefig(buf, format='png', dpi=140, bbox_inches='tight')
+        fig.savefig(buf, format='png', dpi=140, bbox_inches='tight', facecolor=DARK_CANVAS_BG)
         plt.close(fig)
         buf.seek(0)
         return buf
@@ -247,30 +267,28 @@ def create_chart_image(chart_config: Dict[str, Any]) -> Optional[io.BytesIO]:
 
 def _render_card_fallback(title: str, subtitle: str) -> Optional[io.BytesIO]:
     """
-    Guaranteed fallback that always draws a clean branded card image in Matplotlib.
-    Ensures PDF reports never have broken images or ugly missing placeholders.
+    Guaranteed dark-themed fallback card that always draws a clean branded card image in Matplotlib.
     """
     try:
         fig, ax = plt.subplots(figsize=(6.5, 2.2), dpi=120)
-        fig.patch.set_facecolor('#FDFDFD')
-        ax.set_facecolor('#F8F7F4')
+        fig.patch.set_facecolor(DARK_CANVAS_BG)
+        ax.set_facecolor(DARK_CANVAS_BG)
         ax.set_xlim(0, 1)
         ax.set_ylim(0, 1)
         ax.axis('off')
 
-        # Border box
         rect = plt.Rectangle((0.02, 0.05), 0.96, 0.90, fill=True,
-                             facecolor='#FAF8F4', edgecolor='#C9A76A', linewidth=1.5,
+                             facecolor='#1E1E23', edgecolor=DARK_ACCENT, linewidth=1.5,
                              transform=ax.transAxes, clip_on=False)
         ax.add_patch(rect)
 
         ax.text(0.5, 0.62, title, ha='center', va='center',
-                fontsize=11, fontweight='bold', color='#16161A', transform=ax.transAxes)
+                fontsize=11, fontweight='bold', color=DARK_TEXT_PRIMARY, transform=ax.transAxes)
         ax.text(0.5, 0.35, subtitle, ha='center', va='center',
-                fontsize=9, color='#7A6237', transform=ax.transAxes)
+                fontsize=9, color=DARK_ACCENT, transform=ax.transAxes)
 
         buf = io.BytesIO()
-        fig.savefig(buf, format='png', dpi=120, bbox_inches='tight')
+        fig.savefig(buf, format='png', dpi=120, bbox_inches='tight', facecolor=DARK_CANVAS_BG)
         plt.close(fig)
         buf.seek(0)
         return buf
@@ -332,10 +350,11 @@ def generate_pdf(session_data: Dict[str, Any], analysis_results: Dict[str, Any],
             ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
             ('FONTSIZE', (0,0), (-1,-1), 8),
             ('BOTTOMPADDING', (0,0), (-1,0), 8),
-            ('TOPPADDING', (0,0), (-1,-1), 4),
-            ('BOTTOMPADDING', (0,1), (-1,-1), 4),
-            ('BACKGROUND', (0,1), (-1,-1), colors.HexColor('#FAF8F4')),
-            ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#D0D0D0'))
+            ('TOPPADDING', (0,0), (-1,-1), 5),
+            ('BOTTOMPADDING', (0,1), (-1,-1), 5),
+            ('BACKGROUND', (0,1), (-1,-1), colors.HexColor('#1E1E23')),
+            ('TEXTCOLOR', (0,1), (-1,-1), colors.HexColor('#F5F1E8')),
+            ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#2A2A30'))
         ]))
         elements.append(t)
         elements.append(Spacer(1, 14))

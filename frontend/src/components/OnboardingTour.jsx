@@ -21,7 +21,7 @@ const TOUR_STEPS = [
   {
     icon: '⌨️',
     title: 'Power User Shortcuts',
-    desc: 'Press Ctrl+K to open the Command Palette. Use 1-4 to switch tabs, N for new analysis. Toggle dark/light theme from the sidebar.',
+    desc: 'Press Ctrl+K to open the Command Palette. Use 1-4 to switch tabs, N for new analysis.',
   },
   {
     icon: '🔗',
