@@ -32,7 +32,17 @@ function autoGenerateCharts(dataPreview) {
 
   // 1. Histogram for each numeric column (up to 3)
   numericCols.slice(0, 3).forEach(col => {
-    const values = rows.map(r => Number(r[col])).filter(v => !isNaN(v));
+    const rawValues = rows.map(r => Number(r[col])).filter(v => !isNaN(v) && isFinite(v));
+    let values = rawValues;
+    if (rawValues.length >= 10) {
+      const sorted = [...rawValues].sort((a, b) => a - b);
+      const q1 = sorted[Math.floor(sorted.length * 0.25)];
+      const q3 = sorted[Math.floor(sorted.length * 0.75)];
+      const iqr = q3 - q1;
+      if (iqr > 0 && (sorted[sorted.length - 1] > (q3 + 3.5 * iqr) * 2.0 || sorted[0] < q1 - 3.5 * iqr)) {
+        values = rawValues.filter(v => v >= q1 - 3.5 * iqr && v <= q3 + 3.5 * iqr);
+      }
+    }
     charts.push({
       title: `Distribution of ${col}`,
       chart_type: 'histogram',
@@ -45,8 +55,11 @@ function autoGenerateCharts(dataPreview) {
   catCols.slice(0, 2).forEach(col => {
     const counts = {};
     rows.forEach(r => {
-      const v = r[col];
-      if (v !== null && v !== undefined && v !== '') counts[String(v)] = (counts[String(v)] || 0) + 1;
+      let v = r[col];
+      if (v !== null && v !== undefined && v !== '') {
+        if (typeof v === 'string') v = v.trim();
+        counts[String(v)] = (counts[String(v)] || 0) + 1;
+      }
     });
     const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 10);
     charts.push({
@@ -57,16 +70,19 @@ function autoGenerateCharts(dataPreview) {
     });
   });
 
-  // 3. Scatter plot: first two numeric columns
+  // 3. Scatter plot: first two numeric columns (paired filtering)
   if (numericCols.length >= 2) {
     const xCol = numericCols[0], yCol = numericCols[1];
-    const x = rows.map(r => Number(r[xCol])).filter(v => !isNaN(v));
-    const y = rows.map(r => Number(r[yCol])).filter(v => !isNaN(v));
-    const len = Math.min(x.length, y.length, 500);
+    const validPairs = rows
+      .map(r => [Number(r[xCol]), Number(r[yCol])])
+      .filter(([vx, vy]) => !isNaN(vx) && isFinite(vx) && !isNaN(vy) && isFinite(vy));
+    const len = Math.min(validPairs.length, 500);
+    const x = validPairs.slice(0, len).map(p => p[0]);
+    const y = validPairs.slice(0, len).map(p => p[1]);
     charts.push({
       title: `${xCol} vs ${yCol}`,
       chart_type: 'scatter',
-      data: [{ x: x.slice(0, len), y: y.slice(0, len), type: 'scatter', mode: 'markers', marker: { color: COLORS[3], size: 5, opacity: 0.6 } }],
+      data: [{ x, y, type: 'scatter', mode: 'markers', marker: { color: COLORS[3], size: 5, opacity: 0.6 } }],
       layout: { xaxis: { title: xCol }, yaxis: { title: yCol } },
     });
   }
@@ -76,8 +92,11 @@ function autoGenerateCharts(dataPreview) {
     const col = catCols[0];
     const counts = {};
     rows.forEach(r => {
-      const v = r[col];
-      if (v !== null && v !== undefined && v !== '') counts[String(v)] = (counts[String(v)] || 0) + 1;
+      let v = r[col];
+      if (v !== null && v !== undefined && v !== '') {
+        if (typeof v === 'string') v = v.trim();
+        counts[String(v)] = (counts[String(v)] || 0) + 1;
+      }
     });
     const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 8);
     charts.push({

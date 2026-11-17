@@ -171,6 +171,18 @@ def _generate_column_insight(df: pd.DataFrame, col: str) -> dict:
 
         return {"column": col, "type": "numeric", "insight": insight_text}
 
+    elif pd.api.types.is_datetime64_any_dtype(series):
+        clean = series.dropna()
+        if len(clean) == 0:
+            return None
+        min_date = clean.min().strftime('%Y-%m-%d')
+        max_date = clean.max().strftime('%Y-%m-%d')
+        days = (clean.max() - clean.min()).days
+        insight_text = f"Temporal series spanning from {min_date} to {max_date} ({days} days, {clean.dt.date.nunique()} active dates)."
+        if n_missing > 0:
+            insight_text += f" Has {n_missing} unparseable or missing date records ({round(n_missing/len(df)*100, 1)}%)."
+        return {"column": col, "type": "datetime", "insight": insight_text}
+
     else:
         vc = series.value_counts()
         if len(vc) == 0:

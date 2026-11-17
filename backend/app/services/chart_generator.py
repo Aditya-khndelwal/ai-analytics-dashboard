@@ -21,6 +21,34 @@ def safe_json(fig: go.Figure) -> dict:
     return {'data': raw.get('data', []), 'layout': raw.get('layout', {})}
 
 
+def filter_visualization_outliers(series: pd.Series) -> pd.Series:
+    """
+    Filters extreme sentinel outliers (e.g. 9999, 1500, 25000) for clean chart visualization.
+    Preserves normal variability while preventing massive axis stretching that crushes 99% of data.
+    """
+    s = series.dropna()
+    if len(s) < 10:
+        return s
+    q1 = s.quantile(0.25)
+    q3 = s.quantile(0.75)
+    iqr = q3 - q1
+    if iqr == 0:
+        return s
+    
+    upper_bound = q3 + 3.5 * iqr
+    lower_bound = q1 - 3.5 * iqr
+    
+    # Only filter if extreme outliers actually exist (e.g. max is > 2.0x upper bound)
+    has_extreme_high = s.max() > upper_bound * 2.0
+    has_extreme_low = s.min() < lower_bound - abs(lower_bound) * 2.0
+    
+    if has_extreme_high or has_extreme_low:
+        filtered = s[(s >= lower_bound) & (s <= upper_bound)]
+        if len(filtered) >= len(s) * 0.85:
+            return filtered
+    return s
+
+
 def generate_chart_configs(df: pd.DataFrame, schema: List[Dict[str, Any]], analysis_results: Dict[str, Any]) -> List[Dict[str, Any]]:
     """Generates a list of Plotly chart configurations based on data patterns."""
     numeric_cols = [s['name'] for s in schema if s['inferred_type'] == 'numeric']
@@ -29,17 +57,21 @@ def generate_chart_configs(df: pd.DataFrame, schema: List[Dict[str, Any]], analy
 
     charts = []
 
-    # 1. Histograms (max 6)
+    # 1. Histograms (max 6) - with outlier filtering for clean distribution
     for i, col in enumerate(numeric_cols[:6]):
         series = df[col].dropna()
-        if len(series) > 3000:
-            series = series.sample(3000, random_state=42)
+        plot_series = filter_visualization_outliers(series)
+        if len(plot_series) > 3000:
+            plot_series = plot_series.sample(3000, random_state=42)
         fig = go.Figure(data=[go.Histogram(
-            x=series.tolist(),
+            x=plot_series.tolist(),
             marker_color=THEME_COLORS[i % len(THEME_COLORS)],
             opacity=0.85
         )])
-        fig.update_layout(title=f'Distribution of {col}', xaxis_title=col, yaxis_title='Count', **LAYOUT_DEFAULTS)
+        title_suffix = ""
+        if len(plot_series) < len(series):
+            title_suffix = f" (excl. {len(series) - len(plot_series)} outliers)"
+        fig.update_layout(title=f'Distribution of {col}{title_suffix}', xaxis_title=col, yaxis_title='Count', **LAYOUT_DEFAULTS)
         chart_json = safe_json(fig)
         charts.append({
             'id': f'hist_{i}', 'title': f'Distribution of {col}',
@@ -48,7 +80,7 @@ def generate_chart_configs(df: pd.DataFrame, schema: List[Dict[str, Any]], analy
 
     # 2. Bar charts for categoricals (max 4)
     for i, col in enumerate(categorical_cols[:4]):
-        counts = df[col].value_counts().head(10)
+        counts = df[col].dropna().value_counts().head(10)
         if len(counts) > 0:
             fig = go.Figure(data=[go.Bar(
                 x=[str(v) for v in counts.index.tolist()],
@@ -65,7 +97,10 @@ def generate_chart_configs(df: pd.DataFrame, schema: List[Dict[str, Any]], analy
     # 2b. Category Breakdown Charts (Group Averages & Category Distributions)
     for i, cat_col in enumerate(categorical_cols[:2]):
         for j, num_col in enumerate(numeric_cols[:2]):
-            group_stats = df.groupby(cat_col)[num_col].agg(['mean', 'count']).dropna()
+            valid_subset = df[[cat_col, num_col]].dropna()
+            clean_s = filter_visualization_outliers(valid_subset[num_col])
+            valid_subset = valid_subset[valid_subset[num_col].isin(clean_s)]
+            group_stats = valid_subset.groupby(cat_col)[num_col].agg(['mean', 'count']).dropna()
             if len(group_stats) > 1:
                 sorted_stats = group_stats.sort_values(by='mean', ascending=False).head(12)
                 fig_avg = go.Figure(data=[go.Bar(
@@ -90,7 +125,7 @@ def generate_chart_configs(df: pd.DataFrame, schema: List[Dict[str, Any]], analy
                 })
 
                 if len(group_stats) <= 10:
-                    valid_box = df[[cat_col, num_col]].dropna()
+                    valid_box = valid_subset[[cat_col, num_col]].dropna()
                     if len(valid_box) > 2000:
                         valid_box = valid_box.sample(2000, random_state=42)
                     fig_box = go.Figure(data=[go.Box(
@@ -136,6 +171,9 @@ def generate_chart_configs(df: pd.DataFrame, schema: List[Dict[str, Any]], analy
     for i, corr_item in enumerate(top_corrs[:2]):
         c1, c2 = corr_item['col1'], corr_item['col2']
         valid = df[[c1, c2]].dropna()
+        for col in [c1, c2]:
+            clean_col = filter_visualization_outliers(valid[col])
+            valid = valid[valid[col].isin(clean_col)]
         if len(valid) > 2000:
             valid = valid.sample(2000, random_state=42)
         fig = go.Figure(data=[go.Scatter(
@@ -163,19 +201,43 @@ def generate_chart_configs(df: pd.DataFrame, schema: List[Dict[str, Any]], analy
     # 5. Line charts for datetime + numeric (time series)
     if datetime_cols and numeric_cols:
         dt_col = datetime_cols[0]
-        sorted_df = df.sort_values(by=dt_col).dropna(subset=[dt_col])
+        sorted_df = df.dropna(subset=[dt_col]).sort_values(by=dt_col)
         for i, num_col in enumerate(numeric_cols[:2]):
             valid = sorted_df[[dt_col, num_col]].dropna()
-            if len(valid) > 1000:
-                step = max(1, len(valid) // 1000)
-                valid = valid.iloc[::step]
-            x_vals = [str(v) for v in valid[dt_col].tolist()]
-            y_vals = valid[num_col].tolist()
+            if len(valid) == 0:
+                continue
+
+            clean_num = filter_visualization_outliers(valid[num_col])
+            valid = valid[valid[num_col].isin(clean_num)]
+            if len(valid) == 0:
+                continue
+
+            is_sum_metric = any(k in num_col.lower() for k in ['revenue', 'sales', 'units', 'count', 'amount', 'profit', 'cost', 'qty'])
+            agg_func = 'sum' if is_sum_metric else 'mean'
+
+            if valid[dt_col].dt.date.nunique() < len(valid):
+                date_span = (valid[dt_col].max() - valid[dt_col].min()).days if len(valid) > 1 else 0
+                if date_span > 365:
+                    grouped = valid.groupby(valid[dt_col].dt.to_period('W'))[num_col].agg(agg_func).reset_index()
+                    x_vals = [str(p.start_time.date()) for p in grouped[dt_col]]
+                else:
+                    grouped = valid.groupby(valid[dt_col].dt.date)[num_col].agg(agg_func).reset_index()
+                    x_vals = [str(d) for d in grouped[dt_col]]
+                y_vals = [round(float(v), 2) for v in grouped[num_col]]
+            else:
+                x_vals = [str(v)[:10] for v in valid[dt_col].tolist()]
+                y_vals = [round(float(v), 2) for v in valid[num_col].tolist()]
+
+            if len(x_vals) > 500:
+                step = max(1, len(x_vals) // 500)
+                x_vals = x_vals[::step]
+                y_vals = y_vals[::step]
+
             fig = go.Figure(data=[go.Scatter(
                 x=x_vals, y=y_vals,
                 mode='lines+markers',
                 line=dict(color=THEME_COLORS[i % len(THEME_COLORS)], width=2),
-                marker=dict(size=5)
+                marker=dict(size=4)
             )])
             fig.update_layout(
                 title=f'{num_col} over time',

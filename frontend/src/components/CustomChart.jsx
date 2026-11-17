@@ -83,7 +83,9 @@ function CustomChart({ data, session }) {
         // Aggregate: count by xCol, or sum yCol by xCol
         const agg = {};
         rows.forEach(r => {
-          const label = String(r[xCol] ?? 'N/A');
+          let label = r[xCol];
+          if (label === null || label === undefined || label === '') label = 'N/A';
+          if (typeof label === 'string') label = label.trim();
           if (yCol) {
             agg[label] = (agg[label] || 0) + (Number(r[yCol]) || 0);
           } else {
@@ -102,27 +104,41 @@ function CustomChart({ data, session }) {
         if (!yCol) {
           // Count by xCol
           const agg = {};
-          rows.forEach(r => { const v = String(r[xCol] ?? 'N/A'); agg[v] = (agg[v] || 0) + 1; });
+          rows.forEach(r => {
+            let v = r[xCol];
+            if (v === null || v === undefined || v === '') v = 'N/A';
+            if (typeof v === 'string') v = v.trim();
+            agg[v] = (agg[v] || 0) + 1;
+          });
           const labels = Object.keys(agg).slice(0, 20);
           return {
             data: [{ x: labels, y: labels.map(l => agg[l]), type: 'bar', marker: { color: COLORS[0] } }],
             layout: { xaxis: { title: xCol }, yaxis: { title: 'Count' } }
           };
         }
-        const yValues = rows.map(r => r[yCol]).filter(v => v !== null && v !== undefined);
+        const validPairs = rows
+          .filter(r => r[xCol] !== null && r[xCol] !== undefined && r[yCol] !== null && r[yCol] !== undefined && !isNaN(Number(r[yCol])))
+          .slice(0, 50);
         return {
-          data: [{ x: xValues.slice(0, 50), y: yValues.slice(0, 50), type: 'bar', marker: { color: COLORS[0] } }],
+          data: [{
+            x: validPairs.map(r => typeof r[xCol] === 'string' ? r[xCol].trim() : r[xCol]),
+            y: validPairs.map(r => Number(r[yCol])),
+            type: 'bar',
+            marker: { color: COLORS[0] }
+          }],
           layout: { xaxis: { title: xCol }, yaxis: { title: yCol } }
         };
       }
 
       case 'line':
       case 'scatter': {
-        const yValues = yCol ? rows.map(r => r[yCol]) : [];
+        const validPairs = rows
+          .filter(r => r[xCol] !== null && r[xCol] !== undefined && (!yCol || (r[yCol] !== null && r[yCol] !== undefined && !isNaN(Number(r[yCol])))))
+          .slice(0, 300);
         return {
           data: [{
-            x: xValues.slice(0, 200),
-            y: yValues.slice(0, 200),
+            x: validPairs.map(r => r[xCol]),
+            y: validPairs.map(r => yCol ? Number(r[yCol]) : 0),
             type: 'scatter',
             mode: chartType === 'line' ? 'lines+markers' : 'markers',
             marker: { color: COLORS[0], size: chartType === 'scatter' ? 8 : 5 },

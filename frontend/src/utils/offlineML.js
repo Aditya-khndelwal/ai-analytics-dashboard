@@ -35,6 +35,12 @@ export function isIdColumn(colName, rows = []) {
   return false;
 }
 
+export function safeNumber(val) {
+  if (val === null || val === undefined || val === '') return NaN;
+  const num = Number(val);
+  return isNaN(num) || !isFinite(num) ? NaN : num;
+}
+
 // Helper to extract clean numeric arrays (strictly excluding ID columns)
 function getNumericColumns(dataPreview) {
   if (!dataPreview || !dataPreview.columns || !dataPreview.rows || dataPreview.rows.length === 0) {
@@ -51,7 +57,7 @@ function getNumericColumns(dataPreview) {
       const val = dataPreview.rows[i][col];
       if (val !== null && val !== undefined && val !== '') {
         count++;
-        if (!isNaN(Number(val))) numCount++;
+        if (!isNaN(safeNumber(val))) numCount++;
       }
     }
     if (count > 0 && numCount / count >= 0.8) {
@@ -63,8 +69,8 @@ function getNumericColumns(dataPreview) {
 
 function getColumnValues(rows, col) {
   return rows
-    .map(r => Number(r[col]))
-    .filter(v => !isNaN(v) && v !== null && isFinite(v));
+    .map(r => safeNumber(r[col]))
+    .filter(v => !isNaN(v) && isFinite(v));
 }
 
 function mean(arr) {
@@ -117,7 +123,7 @@ export function offlineAnomalies(dataPreview) {
 
     let colAnomalies = 0;
     rows.forEach((r, idx) => {
-      const v = Number(r[col]);
+      const v = safeNumber(r[col]);
       if (isNaN(v)) return;
       const isZ = Math.abs(v - m) / s > 3;
       const isIQR = v < lower || v > upper;
@@ -182,7 +188,7 @@ export function offlineClusters(dataPreview, columns = null, nClusters = 3) {
     const pt = [];
     let ok = true;
     for (const c of useCols) {
-      const v = Number(r[c]);
+      const v = safeNumber(r[c]);
       if (isNaN(v)) { ok = false; break; }
       pt.push(v);
     }
@@ -340,7 +346,7 @@ export function offlineForecast(dataPreview, dateCol = null, valueCol = null, pe
   const dates = [];
 
   rows.forEach((r, idx) => {
-    const v = Number(r[detectedValCol]);
+    const v = safeNumber(r[detectedValCol]);
     if (!isNaN(v) && isFinite(v)) {
       values.push(v);
       if (useIndex) {
@@ -438,13 +444,13 @@ export function offlineImportance(dataPreview, targetCol = null) {
     const catCols = cols.filter(c => !numericCols.includes(c) && !isIdColumn(c, rows));
     if (catCols.length > 0 && target) {
       const rankings = [];
-      const targetVals = rows.map(r => Number(r[target])).filter(v => !isNaN(v));
+      const targetVals = rows.map(r => safeNumber(r[target])).filter(v => !isNaN(v));
       const overallMean = mean(targetVals);
       catCols.forEach(cat => {
         const groups = {};
         rows.forEach(r => {
           const cv = r[cat];
-          const tv = Number(r[target]);
+          const tv = safeNumber(r[target]);
           if (cv !== null && cv !== undefined && !isNaN(tv)) {
             if (!groups[cv]) groups[cv] = [];
             groups[cv].push(tv);
@@ -480,7 +486,7 @@ export function offlineImportance(dataPreview, targetCol = null) {
     return { error: 'Need at least 1 predictor column besides target' };
   }
 
-  const targetVals = rows.map(r => Number(r[target])).filter(v => !isNaN(v));
+  const targetVals = rows.map(r => safeNumber(r[target])).filter(v => !isNaN(v));
   const tMean = mean(targetVals);
   const tStd = std(targetVals, tMean);
 
@@ -490,8 +496,8 @@ export function offlineImportance(dataPreview, targetCol = null) {
     let count = 0;
     const fVals = [];
     rows.forEach(r => {
-      const tv = Number(r[target]);
-      const fv = Number(r[f]);
+      const tv = safeNumber(r[target]);
+      const fv = safeNumber(r[f]);
       if (!isNaN(tv) && !isNaN(fv)) {
         fVals.push(fv);
         count++;
@@ -503,8 +509,8 @@ export function offlineImportance(dataPreview, targetCol = null) {
     const fStd = std(fVals, fMean);
 
     rows.forEach(r => {
-      const tv = Number(r[target]);
-      const fv = Number(r[f]);
+      const tv = safeNumber(r[target]);
+      const fv = safeNumber(r[f]);
       if (!isNaN(tv) && !isNaN(fv)) {
         sumProd += (fv - fMean) * (tv - tMean);
       }
@@ -635,7 +641,7 @@ export function offlinePca(dataPreview, nComponents = 2) {
     const pt = [];
     let ok = true;
     for (const c of numericCols) {
-      const v = Number(r[c]);
+      const v = safeNumber(r[c]);
       if (isNaN(v)) { ok = false; break; }
       pt.push(v);
     }
@@ -757,7 +763,7 @@ export function offlineAutoML(dataPreview, targetCol = null) {
   const data = [];
   rows.forEach(r => {
     let pt = [];
-    const yVal = Number(r[target]);
+    const yVal = safeNumber(r[target]);
     if (isNaN(yVal)) return;
 
     if (isOneHot) {
@@ -766,7 +772,7 @@ export function offlineAutoML(dataPreview, targetCol = null) {
     } else {
       let ok = true;
       for (const c of featureCols) {
-        const v = Number(r[c]);
+        const v = safeNumber(r[c]);
         if (isNaN(v)) { ok = false; break; }
         pt.push(v);
       }
@@ -878,8 +884,8 @@ export function offlineHeatmap(dataPreview) {
       let sum = 0;
       let count = 0;
       rows.forEach(r => {
-        const v1 = Number(r[numericCols[i]]);
-        const v2 = Number(r[numericCols[j]]);
+        const v1 = safeNumber(r[numericCols[i]]);
+        const v2 = safeNumber(r[numericCols[j]]);
         if (!isNaN(v1) && !isNaN(v2)) {
           sum += (v1 - colMeans[i]) * (v2 - colMeans[j]);
           count++;

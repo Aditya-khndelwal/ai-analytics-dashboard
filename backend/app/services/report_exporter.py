@@ -168,10 +168,16 @@ def create_chart_image(chart_config: Dict[str, Any]) -> Optional[io.BytesIO]:
                 if 'lines' in mode or tr.get('type') == 'line':
                     y_clean = [_safe_float(v) or 0.0 for v in y_raw]
                     ax.plot(range(len(x_raw)), y_clean, color=tr_color, linewidth=2,
-                            marker='o', markersize=4, label=tr_name if len(data_list) > 1 else None)
-                    if len(x_raw) <= 15 and idx_tr == 0:
-                        ax.set_xticks(range(len(x_raw)))
-                        ax.set_xticklabels([str(v) for v in x_raw], rotation=30, ha='right', fontsize=8)
+                            marker='o', markersize=3, label=tr_name if len(data_list) > 1 else None)
+                    if len(x_raw) > 0 and idx_tr == 0:
+                        if len(x_raw) <= 15:
+                            ax.set_xticks(range(len(x_raw)))
+                            ax.set_xticklabels([str(v)[:10] for v in x_raw], rotation=30, ha='right', fontsize=8)
+                        else:
+                            step = max(1, len(x_raw) // 6)
+                            ticks = list(range(0, len(x_raw), step))
+                            ax.set_xticks(ticks)
+                            ax.set_xticklabels([str(x_raw[t])[:10] for t in ticks], rotation=30, ha='right', fontsize=8)
                 else:
                     pts_x, pts_y = [], []
                     for x, y in zip(x_raw, y_raw):
