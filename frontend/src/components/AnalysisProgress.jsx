@@ -58,7 +58,7 @@ const AnalysisProgress = ({ sessionId, onComplete, onError }) => {
       }
     };
 
-    intervalId = setInterval(checkStatus, 600);
+    intervalId = setInterval(checkStatus, 350);
     checkStatus(); // initial check
 
     return () => {

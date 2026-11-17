@@ -31,9 +31,11 @@ def generate_chart_configs(df: pd.DataFrame, schema: List[Dict[str, Any]], analy
 
     # 1. Histograms (max 6)
     for i, col in enumerate(numeric_cols[:6]):
-        series = df[col].dropna().tolist()
+        series = df[col].dropna()
+        if len(series) > 3000:
+            series = series.sample(3000, random_state=42)
         fig = go.Figure(data=[go.Histogram(
-            x=series,
+            x=series.tolist(),
             marker_color=THEME_COLORS[i % len(THEME_COLORS)],
             opacity=0.85
         )])
@@ -89,6 +91,8 @@ def generate_chart_configs(df: pd.DataFrame, schema: List[Dict[str, Any]], analy
 
                 if len(group_stats) <= 10:
                     valid_box = df[[cat_col, num_col]].dropna()
+                    if len(valid_box) > 2000:
+                        valid_box = valid_box.sample(2000, random_state=42)
                     fig_box = go.Figure(data=[go.Box(
                         x=[str(v) for v in valid_box[cat_col].tolist()],
                         y=valid_box[num_col].tolist(),
@@ -132,6 +136,8 @@ def generate_chart_configs(df: pd.DataFrame, schema: List[Dict[str, Any]], analy
     for i, corr_item in enumerate(top_corrs[:2]):
         c1, c2 = corr_item['col1'], corr_item['col2']
         valid = df[[c1, c2]].dropna()
+        if len(valid) > 2000:
+            valid = valid.sample(2000, random_state=42)
         fig = go.Figure(data=[go.Scatter(
             x=valid[c1].tolist(),
             y=valid[c2].tolist(),
@@ -160,6 +166,9 @@ def generate_chart_configs(df: pd.DataFrame, schema: List[Dict[str, Any]], analy
         sorted_df = df.sort_values(by=dt_col).dropna(subset=[dt_col])
         for i, num_col in enumerate(numeric_cols[:2]):
             valid = sorted_df[[dt_col, num_col]].dropna()
+            if len(valid) > 1000:
+                step = max(1, len(valid) // 1000)
+                valid = valid.iloc[::step]
             x_vals = [str(v) for v in valid[dt_col].tolist()]
             y_vals = valid[num_col].tolist()
             fig = go.Figure(data=[go.Scatter(
