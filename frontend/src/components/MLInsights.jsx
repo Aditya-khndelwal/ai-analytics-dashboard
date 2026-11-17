@@ -24,10 +24,41 @@ function MLInsights({ sessionId, dataPreview }) {
   const [loading, setLoading] = useState({});
   const [errors, setErrors] = useState({});
 
+  const computeOffline = (panel) => {
+    if (!dataPreview || !dataPreview.rows || dataPreview.rows.length === 0) return null;
+    try {
+      switch (panel) {
+        case 'anomalies': return offlineAnomalies(dataPreview);
+        case 'clusters': return offlineClusters(dataPreview);
+        case 'forecast': return offlineForecast(dataPreview);
+        case 'importance': return offlineImportance(dataPreview);
+        case 'cleaning': return offlineCleaning(dataPreview);
+        case 'pca': return offlinePca(dataPreview);
+        case 'automl': return offlineAutoML(dataPreview);
+        case 'heatmap': return offlineHeatmap(dataPreview);
+        default: return null;
+      }
+    } catch (err) {
+      console.warn('Offline compute error:', err);
+      return null;
+    }
+  };
+
   const loadPanel = async (panel) => {
-    if (data[panel]) return; // Already loaded
-    setLoading(p => ({ ...p, [panel]: true }));
+    if (data[panel]) return; // Already cached
+
+    // 1. Instant local computation (0ms) so user never sees a laggy spinner
+    const instant = computeOffline(panel);
+    if (instant && (!instant.error || instant.is_single_metric)) {
+      setData(p => ({ ...p, [panel]: instant }));
+      setLoading(p => ({ ...p, [panel]: false }));
+    } else {
+      setLoading(p => ({ ...p, [panel]: true }));
+    }
     setErrors(p => ({ ...p, [panel]: null }));
+
+    // 2. Background check with backend if sessionId exists
+    if (!sessionId) return;
     try {
       let result;
       switch (panel) {
@@ -40,41 +71,35 @@ function MLInsights({ sessionId, dataPreview }) {
         case 'automl': result = await getAutoMl(sessionId); break;
         case 'heatmap': result = await getHeatmap(sessionId); break;
       }
-      setData(p => ({ ...p, [panel]: result }));
-    } catch (e) {
-      // Backend failed or server is offline — run client-side offline ML engine!
-      if (dataPreview && dataPreview.rows && dataPreview.rows.length > 0) {
-        try {
-          let offlineResult;
-          switch (panel) {
-            case 'anomalies': offlineResult = offlineAnomalies(dataPreview); break;
-            case 'clusters': offlineResult = offlineClusters(dataPreview); break;
-            case 'forecast': offlineResult = offlineForecast(dataPreview); break;
-            case 'importance': offlineResult = offlineImportance(dataPreview); break;
-            case 'cleaning': offlineResult = offlineCleaning(dataPreview); break;
-            case 'pca': offlineResult = offlinePca(dataPreview); break;
-            case 'automl': offlineResult = offlineAutoML(dataPreview); break;
-            case 'heatmap': offlineResult = offlineHeatmap(dataPreview); break;
-          }
-          if (offlineResult && (!offlineResult.error || offlineResult.is_single_metric)) {
-            setData(p => ({ ...p, [panel]: offlineResult }));
-            setLoading(p => ({ ...p, [panel]: false }));
-            return;
-          } else if (offlineResult && offlineResult.error) {
-            setErrors(p => ({ ...p, [panel]: offlineResult.error }));
-            setLoading(p => ({ ...p, [panel]: false }));
-            return;
-          }
-        } catch (offlineErr) {
-          console.warn('Offline ML engine fallback error:', offlineErr);
-        }
+      if (result) {
+        setData(p => ({ ...p, [panel]: result }));
       }
-      setErrors(p => ({ ...p, [panel]: e.message }));
+    } catch (e) {
+      // If we already have instant local data, don't show an error banner
+      if (!instant) {
+        setErrors(p => ({ ...p, [panel]: e.message }));
+      }
     }
     setLoading(p => ({ ...p, [panel]: false }));
   };
 
   useEffect(() => { loadPanel(activePanel); }, [activePanel]);
+
+  // Precompute remaining panels in idle background so tab switching is instantaneous
+  useEffect(() => {
+    if (dataPreview && dataPreview.rows && dataPreview.rows.length > 0) {
+      const timer = setTimeout(() => {
+        ['anomalies', 'clusters', 'forecast', 'importance', 'cleaning', 'pca', 'automl', 'heatmap'].forEach(p => {
+          setData(current => {
+            if (current[p]) return current;
+            const res = computeOffline(p);
+            return res ? { ...current, [p]: res } : current;
+          });
+        });
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [dataPreview]);
 
   const panels = [
     { id: 'anomalies', label: 'Anomalies', icon: '🔍' },

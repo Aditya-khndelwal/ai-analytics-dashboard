@@ -42,7 +42,7 @@ const AnalysisProgress = ({ sessionId, onComplete, onError }) => {
             if (intervalId) clearInterval(intervalId);
             setTimeout(() => {
               if (mounted) onComplete();
-            }, 1000);
+            }, 300);
             break;
           case 'error':
             if (intervalId) clearInterval(intervalId);
@@ -58,7 +58,7 @@ const AnalysisProgress = ({ sessionId, onComplete, onError }) => {
       }
     };
 
-    intervalId = setInterval(checkStatus, 2000);
+    intervalId = setInterval(checkStatus, 600);
     checkStatus(); // initial check
 
     return () => {

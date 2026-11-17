@@ -46,7 +46,26 @@ function SmartQueryBar({ sessionId, dataPreview }) {
     setLoading(true);
     setResult(null);
 
-    // Try backend local query engine first
+    // 1. Instant local engine (0ms response) if data is in the browser
+    if (dataPreview && dataPreview.rows && dataPreview.rows.length > 0) {
+      try {
+        const clientRes = queryClientData(dataPreview, q);
+        if (clientRes && clientRes.answer) {
+          setResult({
+            question: q,
+            answer: clientRes.answer,
+            chart: clientRes.chart,
+            source: 'Instant Local Engine',
+          });
+          setLoading(false);
+          return;
+        }
+      } catch (clientErr) {
+        console.warn('Client query error, falling back to server:', clientErr);
+      }
+    }
+
+    // 2. Server local query fallback
     try {
       if (sessionId) {
         const res = await localQuery(sessionId, q);
@@ -62,28 +81,15 @@ function SmartQueryBar({ sessionId, dataPreview }) {
         }
       }
     } catch (err) {
-      // Backend not running / offline — fallback to client-side query engine
-      console.log('Falling back to browser smart query engine:', err.message);
+      console.warn('Backend query error:', err.message);
     }
 
-    // Client-side fallback
-    try {
-      const clientRes = queryClientData(dataPreview, q);
-      setResult({
-        question: q,
-        answer: clientRes.answer,
-        chart: clientRes.chart,
-        source: 'Offline Browser Engine',
-      });
-    } catch (err) {
-      setResult({
-        question: q,
-        answer: `Sorry, could not process: ${err.message}`,
-        chart: null,
-        source: 'Error',
-      });
-    }
-
+    setResult({
+      question: q,
+      answer: "Could not find a direct answer. Try asking 'highest [column]', 'average [column] by [category]', or 'summary'.",
+      chart: null,
+      source: 'Help',
+    });
     setLoading(false);
   };
 

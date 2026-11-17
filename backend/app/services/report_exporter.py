@@ -1,14 +1,26 @@
+import os
 import io
 import json
+import tempfile
 import traceback
-import plotly.graph_objects as go
 from typing import Dict, Any, List, Optional
+
+# Ensure matplotlib uses a writable temp directory for caching
+os.environ['MPLCONFIGDIR'] = tempfile.gettempdir()
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+import numpy as np
+
+import plotly.graph_objects as go
 from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image, Table, TableStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image, Table, TableStyle, KeepTogether
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 from docx import Document
 from docx.shared import Inches
+
+THEME_COLORS = ['#C9A76A', '#5FA98A', '#7C93B8', '#B0637E', '#9C9892', '#D4A574', '#6B8E7B']
 
 
 def _sanitize_for_plotly(obj):
@@ -28,49 +40,146 @@ def _sanitize_for_plotly(obj):
 
 
 def create_chart_image(chart_config: Dict[str, Any]) -> Optional[io.BytesIO]:
-    """Renders a Plotly chart config dict to a PNG image byte stream."""
+    """
+    Renders a chart configuration dict to a PNG image byte stream.
+    Uses Matplotlib for fast, headless, 100% reliable rendering without browser/kaleido dependencies.
+    Falls back to Plotly to_image if needed.
+    """
+    data_list = chart_config.get('data', [])
+    if not data_list:
+        return None
+
+    layout = chart_config.get('layout', {})
+    title = chart_config.get('title') or layout.get('title', {}).get('text') or ''
+    if isinstance(title, dict):
+        title = title.get('text', '')
+
+    trace = data_list[0]
+    chart_type = chart_config.get('chart_type') or trace.get('type', 'bar')
+
+    # Primary renderer: Matplotlib (pure Python, fast, zero headless browser / kaleido hangs)
+    fig, ax = plt.subplots(figsize=(6.5, 3.8), dpi=140)
+    fig.patch.set_facecolor('white')
+    ax.set_facecolor('#FAFAFA')
+    ax.grid(True, linestyle='--', alpha=0.35, color='#D0D0D0')
+    ax.set_axisbelow(True)
+
     try:
-        # Get data and layout from chart config
-        data = chart_config.get('data', [])
-        layout = chart_config.get('layout', {})
-        
-        if not data:
-            print(f"Chart '{chart_config.get('title', '?')}': no data found")
-            return None
-        
-        # Sanitize data to remove NaN/None that crash Kaleido
-        data = _sanitize_for_plotly(data)
+        if chart_type == 'histogram' or trace.get('type') == 'histogram':
+            x_vals = trace.get('x', [])
+            numeric_vals = [float(v) for v in x_vals if v is not None and not np.isnan(float(v))]
+            bins = min(25, max(5, int(np.sqrt(len(numeric_vals))))) if numeric_vals else 10
+            ax.hist(numeric_vals, bins=bins, color='#C9A76A', edgecolor='#FFFFFF', alpha=0.9)
+            ax.set_ylabel('Count', fontsize=9, color='#444444')
+            x_title = layout.get('xaxis', {}).get('title', '')
+            if isinstance(x_title, dict):
+                x_title = x_title.get('text', '')
+            ax.set_xlabel(x_title, fontsize=9, color='#444444')
+
+        elif chart_type == 'bar' or trace.get('type') == 'bar':
+            x_vals = [str(v) for v in trace.get('x', [])]
+            y_vals = [float(v) if v is not None else 0.0 for v in trace.get('y', [])]
+            colors_list = [THEME_COLORS[i % len(THEME_COLORS)] for i in range(len(x_vals))]
+            bars = ax.bar(x_vals, y_vals, color=colors_list, edgecolor='#FFFFFF', alpha=0.9, width=0.6)
+            if len(x_vals) <= 12:
+                for bar in bars:
+                    height = bar.get_height()
+                    label_txt = f'{height:.1f}' if abs(height) < 100 and height != int(height) else f'{int(height)}'
+                    ax.annotate(label_txt,
+                                xy=(bar.get_x() + bar.get_width() / 2, height),
+                                xytext=(0, 3), textcoords="offset points",
+                                ha='center', va='bottom', fontsize=8, color='#333333')
+            if len(x_vals) > 5 or any(len(str(x)) > 6 for x in x_vals):
+                plt.setp(ax.get_xticklabels(), rotation=25, ha='right', fontsize=8)
+            y_title = layout.get('yaxis', {}).get('title', 'Value')
+            if isinstance(y_title, dict):
+                y_title = y_title.get('text', 'Value')
+            ax.set_ylabel(y_title, fontsize=9, color='#444444')
+
+        elif chart_type == 'heatmap' or trace.get('type') == 'heatmap':
+            z_vals = trace.get('z', [])
+            x_labels = [str(v) for v in trace.get('x', [])]
+            y_labels = [str(v) for v in trace.get('y', [])]
+            z_array = np.array(z_vals, dtype=float)
+            im = ax.imshow(z_array, cmap='RdBu_r', vmin=-1, vmax=1, aspect='auto')
+            ax.set_xticks(range(len(x_labels)))
+            ax.set_yticks(range(len(y_labels)))
+            ax.set_xticklabels(x_labels, rotation=35, ha='right', fontsize=8)
+            ax.set_yticklabels(y_labels, fontsize=8)
+            plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+            if len(x_labels) <= 8:
+                for i in range(len(y_labels)):
+                    for j in range(len(x_labels)):
+                        val = z_array[i, j]
+                        if not np.isnan(val):
+                            c = 'white' if abs(val) > 0.6 else 'black'
+                            ax.text(j, i, f'{val:.2f}', ha='center', va='center', fontsize=7, color=c)
+
+        elif chart_type in ['scatter', 'line'] or trace.get('type') == 'scatter':
+            x_vals = trace.get('x', [])
+            y_vals = trace.get('y', [])
+            mode = trace.get('mode', 'markers')
+            if 'lines' in mode:
+                ax.plot(range(len(x_vals)), y_vals, color='#C9A76A', linewidth=2, marker='o', markersize=4)
+                if len(x_vals) <= 15:
+                    ax.set_xticks(range(len(x_vals)))
+                    ax.set_xticklabels([str(v) for v in x_vals], rotation=30, ha='right', fontsize=8)
+            else:
+                ax.scatter(x_vals, y_vals, color='#C9A76A', alpha=0.75, edgecolors='#7A6237', s=40)
+            x_title = layout.get('xaxis', {}).get('title', '')
+            if isinstance(x_title, dict):
+                x_title = x_title.get('text', '')
+            y_title = layout.get('yaxis', {}).get('title', '')
+            if isinstance(y_title, dict):
+                y_title = y_title.get('text', '')
+            ax.set_xlabel(x_title, fontsize=9, color='#444444')
+            ax.set_ylabel(y_title, fontsize=9, color='#444444')
+
+        elif chart_type == 'pie' or trace.get('type') == 'pie':
+            labels = [str(v) for v in trace.get('labels', [])][:7]
+            values = trace.get('values', [])[:7]
+            ax.pie(values, labels=labels, autopct='%1.1f%%', colors=THEME_COLORS[:len(labels)],
+                   startangle=140, textprops={'fontsize': 8})
+            ax.axis('equal')
+
+        elif chart_type == 'box' or trace.get('type') == 'box':
+            x_vals = trace.get('x', [])
+            y_vals = trace.get('y', [])
+            cats = sorted(list(set(str(v) for v in x_vals)))
+            box_data = [[float(y) for x, y in zip(x_vals, y_vals) if str(x) == c and y is not None] for c in cats]
+            ax.boxplot(box_data, tick_labels=cats, patch_artist=True,
+                       boxprops=dict(facecolor='#C9A76A', color='#7A6237', alpha=0.8),
+                       medianprops=dict(color='#16161A', linewidth=2))
+            plt.setp(ax.get_xticklabels(), rotation=25, ha='right', fontsize=8)
+            y_title = layout.get('yaxis', {}).get('title', '')
+            if isinstance(y_title, dict):
+                y_title = y_title.get('text', '')
+            ax.set_ylabel(y_title, fontsize=9, color='#444444')
+
+        ax.set_title(title, fontsize=11, fontweight='bold', pad=10, color='#1A1A1A')
+        plt.tight_layout()
+
+        buf = io.BytesIO()
+        fig.savefig(buf, format='png', dpi=140, bbox_inches='tight')
+        plt.close(fig)
+        buf.seek(0)
+        return buf
+    except Exception as mpl_err:
+        plt.close(fig)
+        print(f"Matplotlib render fallback for '{title}': {mpl_err}")
+
+    # Fallback to Plotly fig.to_image
+    try:
+        data = _sanitize_for_plotly(data_list)
         layout = _sanitize_for_plotly(layout)
-        
         fig = go.Figure(data=data, layout=layout)
-        
-        # Override to print-friendly white background
-        fig.update_layout(
-            paper_bgcolor='white',
-            plot_bgcolor='white',
-            font={'color': '#333333', 'family': 'Arial, sans-serif'},
-            title_font_color='#333333',
-            xaxis=dict(
-                gridcolor='#E0E0E0',
-                zerolinecolor='#CCCCCC',
-                title_font_color='#333333',
-                tickfont_color='#555555',
-            ),
-            yaxis=dict(
-                gridcolor='#E0E0E0',
-                zerolinecolor='#CCCCCC',
-                title_font_color='#333333',
-                tickfont_color='#555555',
-            ),
-        )
-        
+        fig.update_layout(paper_bgcolor='white', plot_bgcolor='white')
         img_bytes = fig.to_image(format="png", width=700, height=450, scale=2)
         buf = io.BytesIO(img_bytes)
         buf.seek(0)
         return buf
     except Exception as e:
-        print(f"Chart image generation FAILED for '{chart_config.get('title', '?')}': {e}")
-        traceback.print_exc()
+        print(f"Chart image generation FAILED for '{title}': {e}")
         return None
 
 
@@ -143,11 +252,8 @@ def generate_pdf(session_data: Dict[str, Any], analysis_results: Dict[str, Any],
             try:
                 img_stream = create_chart_image(chart)
                 if img_stream:
-                    elements.append(Paragraph(chart.get('title', 'Chart'), normal))
-                    elements.append(Spacer(1, 4))
-                    img = Image(img_stream, width=440, height=284)
-                    elements.append(img)
-                    elements.append(Spacer(1, 16))
+                    img = Image(img_stream, width=440, height=255)
+                    elements.append(KeepTogether([img, Spacer(1, 14)]))
                     chart_count += 1
                 else:
                     elements.append(Paragraph(f"[Chart: {chart.get('title', 'Chart')} — image could not be generated]", normal))

@@ -90,16 +90,21 @@ def parse_file(filepath: str) -> Dict[str, Any]:
         elif pd.api.types.is_datetime64_any_dtype(df[col]):
             inferred_type = 'datetime'
         elif pd.api.types.is_string_dtype(df[col]) or isinstance(df[col].dtype, pd.CategoricalDtype):
-            # Try to convert to datetime first if it looks like dates
-            try:
-                pd.to_datetime(df[col].dropna().head(20), errors='raise')
-                inferred_type = 'datetime'
-                df[col] = pd.to_datetime(df[col], errors='coerce')
-            except (ValueError, TypeError, ParserError):
-                if unique_count <= 50:
-                    inferred_type = 'categorical'
-                else:
-                    inferred_type = 'text'
+            # Fast check: Only attempt date parsing if column name or samples look date-like
+            col_lower = col.lower()
+            date_name_match = any(k in col_lower for k in ['date', 'time', 'year', 'month', 'day', 'timestamp', 'created', 'updated', 'dt'])
+            sample_str = " ".join(str(v) for v in sample_values)
+            has_date_symbols = any(sym in sample_str for sym in ['-', '/', ':'])
+            
+            if date_name_match or has_date_symbols:
+                try:
+                    pd.to_datetime(df[col].dropna().head(20), errors='raise')
+                    inferred_type = 'datetime'
+                    df[col] = pd.to_datetime(df[col], errors='coerce')
+                except (ValueError, TypeError, ParserError):
+                    inferred_type = 'categorical' if unique_count <= 50 else 'text'
+            else:
+                inferred_type = 'categorical' if unique_count <= 50 else 'text'
 
         schema.append({
             'name': col,
